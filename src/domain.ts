@@ -38,7 +38,7 @@ export interface Rule {
   signature?: string;
 }
 
-export interface PendingRule {
+interface PendingRule {
   ruleHash: string;
   candidate: Omit<Rule, "signer" | "signature">;
   createdAt: string;
@@ -104,8 +104,8 @@ export interface Claim {
 }
 
 /**
- * So existe no modo NAO integrado, onde nao ha regra assinada nem bond.
- * Um merchant integrado ja consentiu ao assinar a regra e aprovar a allowance.
+ * Recibo de contestacao da via de disputa, onde nao ha regra assinada nem bond.
+ * Na via integrada, o merchant ja consentiu ao assinar a regra e a allowance.
  */
 export interface Decision {
   decision: "REJECT";
@@ -453,7 +453,7 @@ export function buildIncident(
  * existir qualquer incidente: assina a regra e aprova a allowance. Pedir um
  * ACCEPT depois seria pedir permissao para executar uma permissao ja concedida.
  *
- * REJECTED so e alcancavel no modo nao integrado, onde nao ha regra assinada.
+ * REJECTED so e alcancavel na via de disputa, onde nao ha regra assinada.
  */
 const transitions: Record<IncidentStatus, IncidentStatus[]> = {
   DETECTED: ["CLAIMING"],

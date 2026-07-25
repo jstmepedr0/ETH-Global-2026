@@ -34,7 +34,7 @@ export function canonicalBytes(evidence: EvidencePack): Uint8Array {
   return new TextEncoder().encode(canonicalJson(evidence));
 }
 
-export function evidenceHashOf(evidence: EvidencePack): string {
+function evidenceHashOf(evidence: EvidencePack): string {
   return hash(evidence);
 }
 

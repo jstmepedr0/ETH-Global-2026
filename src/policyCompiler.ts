@@ -22,14 +22,14 @@ import { BitebackError } from "./domain.js";
  * Um LLM a devolver JSON inválido não pode partir o servidor nem produzir uma
  * regra que pague o que não deve.
  */
-export const compiledRuleSchema = z.object({
+const compiledRuleSchema = z.object({
   maxChargesPerDay: z.number().int().min(1).max(100),
   bucketSeconds: z.literal(86400),
   sameAmountRequired: z.boolean(),
   compensationBps: z.number().int().min(0).max(10000),
 }).strict();
 
-export type CompiledRule = z.infer<typeof compiledRuleSchema>;
+type CompiledRule = z.infer<typeof compiledRuleSchema>;
 
 export interface CompileResult {
   rule: CompiledRule;

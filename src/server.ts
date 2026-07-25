@@ -1277,8 +1277,8 @@ app.post("/api/incidents/:id/settle", async (context) => {
 });
 
 /**
- * So existe para o modo NAO integrado, onde nao ha regra assinada nem bond:
- * o merchant pode recusar, e a recusa fica no registo publico.
+ * Recibo de contestacao da via de disputa, onde nao ha regra assinada nem bond.
+ * O merchant pode contestar e a decisao fica no audit trail.
  */
 app.post("/api/incidents/:id/decision", async (context) => {
   requireOperator(context.req.header("authorization"));

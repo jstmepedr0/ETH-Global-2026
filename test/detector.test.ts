@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BitebackError,
   buildIncident,
   detectPolicyViolations,
+  transition,
   type GraphSource,
   type Payment,
   type Rule,
@@ -155,7 +157,7 @@ test("one wallet with multiple repeated amounts produces one aggregate claim", (
   assert.equal(result[0]?.payoutTinybar, "400000000");
 });
 
-test("the signed rule snapshot is part of the evidence hash", () => {
+test("the exact rule snapshot is part of the evidence hash", () => {
   const payments = [payment("1", 100), payment("2", 200)];
   const source: GraphSource = {
     provider: "the-graph-token-api",
@@ -173,4 +175,67 @@ test("the signed rule snapshot is part of the evidence hash", () => {
   );
   assert.notEqual(first.evidenceHash, changed.evidenceHash);
   assert.equal(first.evidence.rule.hash.startsWith("sha256:"), true);
+});
+
+test("an unsigned compiled rule creates collective evidence but no financial consent", () => {
+  const unsignedRule: Rule = {
+    ...rule,
+    compiledBy: "0g-compute",
+    compilation: {
+      provider: "0g-compute",
+      model: "test-model",
+      endpoint: "https://compute.test",
+      termsHash: "sha256:terms",
+      outputHash: "sha256:output",
+      compiledAt: "2026-07-25T00:00:00.000Z",
+    },
+  };
+  const payments = [
+    payment("1", 100),
+    payment("2", 200),
+    payment("3", 300, { payer: "0xsecond-victim" }),
+    payment("4", 400, { payer: "0xsecond-victim" }),
+  ];
+  const violations = detectPolicyViolations(unsignedRule, payments);
+  const incident = buildIncident(
+    unsignedRule,
+    {
+      provider: "the-graph-substreams",
+      endpoint: "https://graph.test",
+      network: "base-sepolia",
+      indexedBlock: 400,
+      queriedAt: "2026-07-25T00:00:00.000Z",
+    },
+    violations,
+  );
+
+  assert.equal(incident.evidence.totals.victims, 2);
+  assert.equal(incident.evidence.rule.signature, undefined);
+  assert.equal(incident.evidence.rule.compilation?.termsHash, "sha256:terms");
+
+  transition(incident, "CLAIMING");
+  transition(incident, "EVIDENCE_READY");
+  transition(incident, "REJECTED");
+  assert.throws(
+    () => transition(incident, "SETTLING"),
+    (error) => error instanceof BitebackError && error.code === "INCIDENT_NOT_SETTLEABLE",
+  );
+});
+
+test("zero deterministic violations cannot create a public dispute", () => {
+  assert.throws(
+    () =>
+      buildIncident(
+        rule,
+        {
+          provider: "the-graph-substreams",
+          endpoint: "https://graph.test",
+          network: "base-sepolia",
+          indexedBlock: 1,
+          queriedAt: "2026-07-25T00:00:00.000Z",
+        },
+        [],
+      ),
+    (error) => error instanceof BitebackError && error.code === "NO_VIOLATIONS",
+  );
 });

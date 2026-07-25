@@ -30,7 +30,7 @@ export interface BondStatus {
   checkedAt: string;
 }
 
-export function parseHederaPrivateKey(value: string): PrivateKey {
+function parseHederaPrivateKey(value: string): PrivateKey {
   for (const parse of [
     PrivateKey.fromStringECDSA,
     PrivateKey.fromStringED25519,

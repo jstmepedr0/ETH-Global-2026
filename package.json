@@ -1,6 +1,7 @@
 {
   "name": "biteback",
   "version": "1.0.0",
+  "description": "Collective crypto disputes first; automatic merchant protection next.",
   "private": true,
   "type": "module",
   "engines": {

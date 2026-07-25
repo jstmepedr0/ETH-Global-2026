@@ -39,28 +39,9 @@ const sourceConfig = {
   OG_INDEXER: "https://indexer-storage-testnet-turbo.0g.ai",
 };
 
-const legacyKeys = new Set([
-  "GATEWAY_API_KEY",
-  "SUBGRAPH_MCP_URL",
-  "AGENT_ACCOUNT_ID",
-  "AGENT_PRIVATE_KEY",
-  "X402_FACILITATOR",
-  "X402_NETWORK",
-  "X402_ASSET",
-  "PAY_TO",
-  "SETTLER",
-  "AGENT_REGISTRY_ADDRESS",
-  "MERCHANT_DECISION_PRIVATE_KEY",
-]);
-
 async function updateEnv(values: Record<string, string>): Promise<void> {
   const current = await readFile(envFile, "utf8").catch(() => "");
-  const lines = current
-    .split(/\r?\n/)
-    .filter((line) => {
-      const key = /^([A-Z][A-Z0-9_]*)=/.exec(line)?.[1];
-      return !key || !legacyKeys.has(key);
-    });
+  const lines = current.split(/\r?\n/);
   const updated = new Set<string>();
   const next = lines.map((line) => {
     const match = /^([A-Z][A-Z0-9_]*)=/.exec(line);
