@@ -297,6 +297,12 @@ run.
 
 - Protection requires a merchant to opt in, fund the bond, sign the policy, and
   keep the allowance active. BITEBACK cannot withdraw from an unrelated account.
+- **Settlement idempotency lives in the local state file, not on-chain.** An
+  incident that has already paid is refused a second time — but if `data/` is
+  deleted, the same violation is detected again and paid again. We reproduced
+  this during testing. A production deployment must reconcile against the HCS
+  audit topic and Mirror Node before transferring, rather than trusting local
+  state.
 - Without a payment request ID, transfer intent is not provable. The MVP measures
   charges above the merchant's signed daily policy; it does not claim two equal
   transfers are inherently accidental.
