@@ -29,7 +29,8 @@
     "test": "node --import tsx --test test/*.test.ts",
     "check": "npm run build && npm test",
     "evidence:verify": "node --env-file=.env --import tsx scripts/verifyEvidence.ts",
-    "demo:mint": "node --env-file=.env --import tsx scripts/mintDemoData.ts"
+    "demo:mint": "node --env-file=.env --import tsx scripts/mintDemoData.ts",
+    "demo:run": "node --env-file=.env --import tsx scripts/runE2E.ts"
   },
   "dependencies": {
     "@0gfoundation/0g-storage-ts-sdk": "^1.2.10",
