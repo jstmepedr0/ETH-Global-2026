@@ -28,19 +28,27 @@ produto inicial, expansão e implementação live.
 
 ### Problema
 
-Quando um serviço cobra fora da política que publicou, cada utilizador tem de descobrir o problema sozinho, reunir provas e reclamar individualmente. Prejuízos pequenos ficam por reclamar porque o custo de agir excede o valor perdido.
+Quando um serviço cobra fora da política que publicou, cada utilizador tem de
+descobrir o problema, reunir provas e perseguir o protocolo sozinho. Do outro
+lado, o protocolo recebe tickets fragmentados e repete a investigação, a
+reconciliação, o cálculo do prejuízo e a compensação carteira a carteira.
+Prejuízos pequenos ficam por reclamar porque este processo custa mais do que o
+valor perdido.
 
 ### Solução
 
-BITEBACK começa como uma camada de **disputa coletiva** que:
+BITEBACK agrega esse processo numa única camada de **disputa coletiva**: um
+report produz um incidente verificável com todas as carteiras afetadas, o
+prejuízo coletivo exato e a prova necessária para uma única decisão. Para isso:
 
 1. recebe uma cobrança contestada;
 2. deriva dela merchant, token, montante, timestamp e chain;
 3. compila a política publicada do merchant numa regra candidata (0G Compute);
 4. consulta dados on-chain live (The Graph);
 5. deteta a mesma violação noutras carteiras;
-6. produz um Evidence Pack verificável, guardado em 0G Storage e ancorado no HCS;
-7. dá ao merchant duas saídas: contestar a compilação ou liquidar voluntariamente.
+6. calcula o prejuízo coletivo exato;
+7. produz um Evidence Pack verificável, guardado em 0G Storage e ancorado no HCS;
+8. dá ao merchant um único caso para contestar ou liquidar.
 
 Se o merchant adotar BITEBACK, a mesma infraestrutura ganha uma segunda via:
 regra assinada + Consumer Bond + allowance transformam a prova em **payout
@@ -318,7 +326,7 @@ flowchart LR
     PC --> RULE["Candidate rule + URL + ruleHash"]
     GRAPH --> FIND["Victim Finder MCP"]
     RULE --> FIND
-    FIND --> E["Collective Evidence Pack"]
+    FIND --> E["Affected set + exact loss + Evidence Pack"]
     E --> ST["0G Storage"]
     ST --> H["HCS + Mirror Node"]
     E --> Q{"Merchant pre-authorized?"}
@@ -1016,19 +1024,20 @@ finge que o report UX ou a página pública da via inicial já estão implementa
 
 **Três beats para juízes**
 
-1. **Distribuição sem integração** — começamos por uma disputa que já existe.
-2. **O fan-out é o produto** — uma pessoa descobre todas as outras.
-3. **Integração é o upgrade** — a mesma prova passa de acionável a automática.
+1. **Um report, não centenas de tickets** — o utilizador deixa de perseguir o protocolo sozinho.
+2. **Um cálculo, não centenas de investigações** — o protocolo recebe o grupo, o prejuízo exato e a prova.
+3. **Uma resolução** — o mesmo caso pode ser contestado, liquidado ou pago automaticamente após integração.
 
 ---
 
 ## 21. Texto de submissão
 
 **Short description**
-> Collective dispute infrastructure for crypto: one reported payment triggers a
-> deterministic search for every affected wallet and creates verifiable shared
-> evidence. Merchants can contest or settle; integrated merchants upgrade the
-> same engine to automatic compensation from a pre-authorized Hedera bond.
+> One crypto dispute becomes one complete, verifiable case: BITEBACK finds every
+> affected wallet, calculates the exact collective loss and packages the
+> evidence, so users stop chasing protocols and protocols stop investigating
+> claims one by one. Merchants can contest or settle once; integrated merchants
+> pay every eligible wallet atomically from a pre-authorized Hedera bond.
 
 **How The Graph is used**
 > Substreams provide the live source of ERC-20 transfer events on Base Sepolia. The Victim Finder MCP wraps this into four reusable tools (`scanViolations`, `findVictims`, `calculateLoss`, `buildEvidencePack`) that any agent or protocol can call. No mocked data anywhere in the detection path.
@@ -1086,7 +1095,7 @@ fundos · via integrada provada com 3 claims e 3 payouts.
 |---|---|
 | Parceiros | The Graph · Hedera · 0G |
 | Tracks | Graph AI Tooling · Hedera Agentic Payments · Hedera No Solidity · 0G Best AI Product |
-| Go-to-market | **dispute first**: uma cobrança → fan-out → prova coletiva |
+| Go-to-market | **um report → grupo afetado → prejuízo exato → uma resolução** |
 | Via não integrada | contestar compilação ou liquidar voluntariamente |
 | Via integrada | regra assinada + bond = payout automático sem clique |
 | `ACCEPT` | **não existe** no modo integrado |

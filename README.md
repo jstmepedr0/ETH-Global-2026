@@ -2,15 +2,24 @@
 
 > When protocols bite, wallets bite back.
 
-BITEBACK turns one on-chain billing dispute into collective, verifiable
-evidence. 0G Compute compiles the merchant's published terms, The Graph finds
-every wallet affected by the same deterministic violation, and 0G Storage plus
-Hedera preserve the case. If the merchant later integrates, the same engine can
-settle every eligible wallet automatically from a pre-authorized Consumer Bond.
+BITEBACK collapses a slow, fragmented dispute process into one verifiable
+incident. Users stop chasing protocols one by one; protocols stop investigating
+wallet by wallet, reconciling transfers and calculating losses manually. From
+one disputed payment, BITEBACK finds every affected wallet, calculates the exact
+collective loss and packages one case to contest or settle.
 
-**Dispute first. Integrated protection next. No Solidity.**
+**One report. Every affected wallet. One case to resolve.**
 
 ![BITEBACK architecture](./ARCHITECTURE.png)
+
+## One incident instead of hundreds of tickets
+
+| Fragmented process | BITEBACK |
+|---|---|
+| Every user discovers the issue and chases the protocol separately | One report triggers the collective search |
+| The protocol investigates and reconciles wallets one at a time | One deterministic affected-wallet set |
+| Losses and compensation are calculated case by case | One exact collective loss and one Evidence Pack |
+| Resolution is repeated for every claimant | One case to contest or settle; integrated merchants pay everyone atomically |
 
 ## Two paths, one engine
 
@@ -18,8 +27,8 @@ settle every eligible wallet automatically from a pre-authorized Consumer Bond.
 |---|---|---|
 | Trigger | One user identifies a disputed payment | Merchant opts in before any incident |
 | Policy | Candidate rule compiled from the merchant's published terms, with URL and rule hash | Merchant signs the exact rule hash |
-| Result | Affected-wallet set, Evidence Pack and factual amount unresolved | The same evidence plus automatic atomic payout |
-| Merchant action | Contest the compilation or settle voluntarily | No post-incident approval; consent already exists |
+| Result | One affected-wallet set, exact collective loss and Evidence Pack | The same case plus automatic atomic payout |
+| Merchant action | Review one aggregated case: contest or settle | No post-incident approval; consent already exists |
 | Hard limit | No published billing policy means no deterministic incident | Requires a funded bond and active allowance |
 
 The go-to-market starts with disputes because a new protocol cannot assume
@@ -101,7 +110,7 @@ flowchart LR
   D["One disputed payment"] --> C["0G compiles published terms"]
   G["The Graph Substreams"] --> V["Victim Finder MCP"]
   C --> V
-  V --> I["Collective incident + Evidence Pack"]
+  V --> I["Affected set + exact loss + Evidence Pack"]
   I --> Q{"Pre-authorized merchant?"}
   Q -->|"No"| U["Contest or voluntary settlement"]
   Q -->|"Signed rule + bond"| P["Automatic atomic payout"]
