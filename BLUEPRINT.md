@@ -2,27 +2,24 @@
 
 > **When protocols bite, wallets bite back.**
 
-**Evento:** ETHGlobal Lisbon 2026
+**Evento:** ETHGlobal Lisbon 2026 · **Deadline:** domingo, 26 julho, 09:00 WEST
 
-**Janela:** 24–26 julho 2026
+**Revisão:** 25 julho 2026, 11:00 WEST — **restam 22 horas**
 
-**Deadline:** domingo, 26 julho, 09:00 WEST
+**Parceiros:** **The Graph · Hedera · 0G**
 
 **Categoria:** Autonomous collective redress for on-chain users
 
-**Implementação:** projeto novo, TypeScript, testnets, sem Solidity próprio
+**Implementação:** TypeScript · testnets · **sem Solidity, em lado nenhum**
 
-**Estado deste documento:** plano de execução; o `README.md` final deve descrever apenas o que estiver realmente implementado
+**Estado:** plano de execução. O `README.md` final descreve apenas o que estiver implementado.
 
 ## Convenções
 
-- **P0** — necessário para submeter e demonstrar.
-- **P1** — aumenta muito a qualidade, sem bloquear o fluxo principal.
-- **P2** — apenas depois de feature freeze.
-- **DoD** — Definition of Done.
+- **P0** — necessário para submeter. **P1** — melhora muito. **P2** — só depois do freeze.
+- **DoD** — Definition of Done. 🔴 — bloqueante ou risco ativo.
 - Nunca apresentar dados mockados como live.
 - Nunca deixar um LLM decidir factos, elegibilidade, montantes ou destinatários.
-- Links, IDs, endereços e hashes assinalados como `<...>` são preenchidos durante a implementação.
 
 ---
 
@@ -30,293 +27,258 @@
 
 ### Problema
 
-Quando um protocolo cobra demasiado, paga menos do que prometeu ou executa incorretamente uma distribuição, cada utilizador tem de descobrir o problema sozinho, reunir provas e pedir compensação individualmente. Pequenos prejuízos ficam por reclamar porque o custo de agir é maior do que o valor perdido.
+Quando um serviço cobra fora da política que publicou, cada utilizador tem de descobrir o problema sozinho, reunir provas e reclamar individualmente. Prejuízos pequenos ficam por reclamar porque o custo de agir excede o valor perdido.
 
 ### Solução
 
 BITEBACK é uma camada de proteção coletiva que:
 
-1. consulta dados on-chain live;
-2. deteta violações determinísticas;
-3. encontra carteiras afetadas pela mesma regra;
-4. agrupa-as num incidente;
-5. aceita claims apenas de agentes autorizados por carteiras afetadas e associados a humanos únicos;
-6. cria um Evidence Pack verificável;
-7. pede uma decisão assinada ao merchant;
-8. distribui HBAR automaticamente a partir de um Consumer Bond autorizado;
-9. ancora regras, hashes, decisões e pagamentos no Hedera Consensus Service.
+1. compila a política publicada do merchant numa regra determinística (0G Compute), que o merchant **assina**;
+2. consulta dados on-chain live (The Graph);
+3. deteta violações dessa regra;
+4. agrupa as carteiras afetadas num incidente;
+5. aceita delegações assinadas pelas carteiras afetadas;
+6. produz um Evidence Pack verificável, guardado em 0G Storage;
+7. **paga automaticamente** a partir do Consumer Bond pré-autorizado (Hedera);
+8. ancora regra, provas e pagamentos no HCS.
+
+### A decisão central: o consentimento acontece uma vez, no início
+
+O merchant consente **duas vezes, ambas antes de existir qualquer incidente**:
+
+```
+1. assina a regra          →  "é esta a política que aceito ser medido contra"
+2. deposita o bond +       →  "e é até este montante que autorizo pagamentos"
+   aprova a allowance
+```
+
+Depois disto, **não há terceiro consentimento**. Se a regra assinada foi violada e o bond cobre o montante, o Settlement Agent paga sozinho. Pedir um `ACCEPT` a seguir seria pedir permissão para executar uma permissão já concedida.
+
+O caminho `REJECT` continua a existir — mas apenas para o **modo não integrado** (§4), onde não há regra assinada nem bond.
 
 ### Exemplo do MVP
 
-Regra:
+Política publicada pelo merchant:
 
-```text
-No máximo 1 cobrança, por payer, por merchant, por dia UTC.
+> *"Subscribers are billed once per calendar day. Charges beyond the first in a UTC day are refunded in full."*
+
+Compilada por inferência e assinada:
+
+```json
+{ "maxChargesPerDay": 1, "bucketSeconds": 86400, "sameAmountRequired": true, "compensationBps": 10000 }
 ```
 
-Dados live:
+Resultado sobre dados live:
 
 ```text
-3 vítimas
-2 cobranças de 2 unidades a cada vítima
-1 cobrança válida + 1 cobrança indevida por vítima
-Claim coletivo: 6 HBAR
-Settlement: 2 HBAR por vítima
+3 carteiras afetadas
+1 cobrança acima da política, por carteira
+Settlement coletivo: 6 HBAR  →  2 HBAR por carteira, automático
 ```
-
-O exemplo original com cinco vítimas e 10 HBAR continua válido como narrativa de escala, mas o demo usa exatamente três vítimas para reduzir risco.
-
-### Tese
-
-O produto não é um tribunal nem decide disputas subjetivas. É uma infraestrutura opt-in para:
-
-- deteção verificável;
-- coordenação de vítimas;
-- autorização humana resistente a Sybil;
-- resposta do merchant;
-- settlement coletivo automático;
-- auditoria pública.
 
 ### Frase de elevador
 
-> BITEBACK detects when many wallets suffer the same on-chain harm, organizes unique human-backed claimants, and automatically pays collective refunds from protocol-funded consumer bonds.
+> Três carteiras foram cobradas acima da política que o próprio serviço publicou. Nenhuma delas sabe das outras, e nenhuma vai processar ninguém por 2 HBAR. O BITEBACK encontra-as nos dados live, prova a violação contra a regra que o serviço assinou, e paga-lhes a partir da garantia que o serviço depositou — sem pedir licença, porque a licença já foi dada.
 
 ### Condição de vitória
 
-O demo só está completo quando uma pessoa consegue ver, numa única sequência:
+Um juiz vê, em dois minutos: termos em texto → regra assinada → dados live → violação → provas em 0G → **HBAR pago automaticamente** → tudo auditável em HashScan.
 
-```text
-live transactions
-→ detected duplicate charges
-→ affected wallets
-→ human-backed claim agents
-→ signed collective decision
-→ atomic HBAR payout
-→ HashScan/HCS audit links
+---
+
+## 2. A stack: três parceiros, três camadas
+
+| Camada | Parceiro | O que faz | Ficheiros |
+|---|---|---|---|
+| **Política** | 0G | 0G Compute compila os termos publicados numa regra JSON; 0G Storage guarda os Evidence Packs | `src/policyCompiler.ts` · `src/evidence.ts` |
+| **Deteção** | The Graph | Substreams transmite transferências ERC-20 live; o Victim Finder MCP produz violações, carteiras afetadas, perdas e provas | `src/graph.ts` · `src/victimFinder.ts` · `src/mcp.ts` |
+| **Settlement** | Hedera | Consumer Bond, allowance HBAR, payout aprovado atómico, HCS, Mirror Node — **sem Solidity** | `src/hedera.ts` |
+
+Cada camada é substituível sem tocar nas outras: a fonte é um adapter, a política é um JSON assinado, o settlement é um SDK. É isso que torna o Victim Finder reutilizável por outro protocolo.
+
+### Anti-Sybil sem proof-of-personhood, e sem registry
+
+BITEBACK **não** prova que existe uma pessoa única por trás de cada claim, e **não precisa**:
+
+> **A elegibilidade não é declarada, é derivada.** Ninguém se inscreve como vítima. O Watcher deriva o conjunto de carteiras afetadas a partir dos dados on-chain. Não é possível fazer Sybil de um claim porque estar afetado é um facto na chain: ou a tua carteira foi cobrada acima da política, ou não foi. Criar mil carteiras não cria dano — para reclamar é preciso ter sido cobrado a mais, e essa cobrança custou dinheiro real.
+
+Sobre isso é preciso provar **uma** coisa: que quem reclama controla a carteira afetada. Uma assinatura EIP-191 chega.
+
+🔴 **Não existe Claim Agent, nem registry, nem Agentic ID.** Foi considerado e cortado, por três razões:
+
+1. **Redundância.** A invariante que o registry impunha — *um claim por agente por incidente* — já é imposta por *um claim por carteira por incidente*. Não acrescentava segurança nenhuma.
+2. **Custo.** Exigia contrato, gas, financiamento de três wallets e um script de registo, para zero ganho.
+3. **Higiene de submissão.** O único registry disponível vinha de um projeto anterior. Reutilizá-lo levantaria dúvidas de *From Scratch* sem necessidade.
+
+**Confirmado na fonte:** o Agentic ID é **opcional** na track do 0G — *"For Agentic ID projects: link to the minted Agentic ID"* aplica-se só a projetos que escolhem esse caminho. Cortá-lo não custa nenhuma track.
+
+### Frase obrigatória no README e no pitch
+
+> BITEBACK does not prove personhood, and does not need to. Eligibility is **derived from on-chain evidence**, never self-declared: a wallet is affected because the chain says it was charged beyond the merchant's own signed policy. Control of that wallet is proven by a single EIP-191 signature.
+
+---
+
+## 3. Escopo fechado do MVP
+
+### Construir
+
+1. Um tipo de violação: **cobrança acima da política diária publicada**.
+2. Um merchant, três carteiras, uma regra determinística.
+3. **0G Compute compila os termos numa regra JSON; o merchant assina-a.**
+4. Deteção sobre **dados live do The Graph** (Substreams, Base Sepolia).
+5. **Victim Finder MCP** com quatro tools reutilizáveis.
+6. Incident cluster com estado persistente.
+7. Delegação EIP-191 da carteira afetada.
+8. Evidence Pack canónico em **0G Storage**, root hash em HCS.
+9. **Payout automático** atómico em HBAR a partir do Consumer Bond.
+10. Caminho `REJECT` para o modo não integrado.
+11. HCS audit trail. Dashboard simples com provas e links on-chain.
+
+### Não construir
+
+- arbitragem, disputas subjetivas, tribunal, appeals;
+- Claim Agents, registry, Agentic ID, proof-of-personhood;
+- conversão automática de moedas / oráculos de câmbio;
+- suporte genérico a vários protocolos;
+- provas privadas / TEE — Fase 1 pós-hackathon;
+- Consumer Bond trustless — é allowance, e diz-se que é allowance;
+- token próprio, governance, múltiplos tipos de violação;
+- middleware x402 — Fase 2 pós-hackathon;
+- **qualquer Solidity**.
+
+### Regra de corte
+
+```
+Policy Compiler → polish do dashboard → 3ª carteira → 2ª carteira
+→ 0G Storage (fallback local) → [NUNCA CORTAR: payout Hedera + dados live Graph]
 ```
 
 ---
 
-## 2. Escopo fechado do MVP
-
-### Construir
-
-- um merchant;
-- uma regra determinística;
-- um tipo de violação: pagamento ERC-20 duplicado;
-- três carteiras afetadas;
-- seis pagamentos live numa rede suportada pelo The Graph;
-- um subgraph live que indexa esses pagamentos;
-- um Victim Finder MCP com quatro tools reutilizáveis;
-- um incidente coletivo;
-- delegações assinadas pelas carteiras afetadas;
-- Claim Agents registados no World AgentBook;
-- proteção AgentKit no endpoint de adesão;
-- uma proposta de settlement;
-- decisão `ACCEPT` ou `REJECT` assinada pelo merchant;
-- Consumer Bond com HBAR em Hedera Testnet;
-- allowance HBAR do bond para o Settlement Agent;
-- payout atómico para três contas Hedera;
-- eventos de auditoria no HCS;
-- leitura de saldo, allowance e transações pelo Mirror Node;
-- dashboard único com provas e links on-chain;
-- vídeo de 2–4 minutos e repositório público.
-
-### Não construir
-
-- sistema jurídico;
-- arbitragem subjetiva;
-- appeals;
-- governance;
-- token próprio;
-- DAO;
-- reputação;
-- marketplace;
-- suporte multi-chain real;
-- vários tipos de violação;
-- contratos Solidity próprios;
-- autenticação genérica;
-- base de dados distribuída;
-- microserviços;
-- abstrações multi-provider;
-- mobile app;
-- notificações;
-- produção financeira real.
-
-### Regra de corte
-
-Qualquer feature que não melhore diretamente um dos nove beats do demo é removida ou adiada.
-
----
-
-## 3. Posicionamento correto
+## 4. Posicionamento correto
 
 ### O que dizer
 
-- “collective settlement infrastructure”;
-- “deterministic, opt-in consumer protection”;
-- “machine-readable evidence”;
-- “human-backed claim authorization”;
-- “protocol-funded settlement mandate”;
-- “automatic payout after an accepted deterministic claim”.
+- "camada autónoma de deteção e settlement coletivo";
+- "compensação a partir de uma garantia pré-autorizada pelo protocolo";
+- "prova machine-readable, não alegação";
+- "elegibilidade derivada da chain, não declarada";
+- "violação de uma política que o próprio merchant assinou".
 
 ### O que não dizer
 
-- “court”;
-- “lawsuit”;
-- “legal judgment”;
-- “guaranteed refund” sem explicar as condições;
-- “trustless escrow” no MVP;
-- “fraud proof” quando é apenas prova de violação de uma regra registada;
-- “World proves every wallet is a unique person”;
-- “The Graph indexes Hedera” se a fonte live estiver noutra chain.
+- "ação judicial coletiva", "class action", "tribunal";
+- **"pagamento duplicado"** — ver §8, é imprecisão que não conseguimos sustentar;
+- "provamos que cada reclamante é uma pessoa única";
+- "recuperamos fundos roubados";
+- "trustless guarantee" — é allowance revogável.
 
-### Formulação legal e técnica
+### Os dois modos — a pergunta que os juízes vão fazer
 
-BITEBACK aplica regras publicadas pelo merchant e executa settlements voluntariamente autorizados. O MVP não determina responsabilidade legal e não força pagamentos contestados.
+> *"Então só conseguem compensar utilizadores de fornecedores que aderiram?"*
+
+**Sim.** Responder de frente. É o modelo dos chargebacks, do escrow e dos seguros: compensação automática exige consentimento prévio de quem paga. Ninguém pode retirar fundos de conta alheia — nem deveria poder.
+
+| | **Fornecedor integrado** | **Fornecedor não integrado** |
+|---|---|---|
+| Regra assinada | ✅ | ⛔ inferida, não assinada |
+| Consumer Bond + allowance | ✅ | ⛔ |
+| Deteção · carteiras · Evidence Pack | ✅ | ✅ |
+| Proposta de settlement | — | ✅ enviada |
+| **Pagamento** | ✅ **automático, sem clique** | ⛔ **só se aderir voluntariamente** |
+
+🔴 Escrever isto em `Limitations`. Um juiz que descubra a limitação sozinho desconta; um juiz a quem a expliques primeiro credita.
+
+**Custo em código: zero.** O modo integrado é o fluxo principal. O modo não integrado é o mesmo fluxo a parar antes do settlement — que é o **rejection path** do Sprint 5.
+
+### Limitação técnica: `requestId`
+
+Sem `requestId`/`orderId` no pagamento, associar uma transferência a uma encomenda é heurística. É por isso que o MVP mede **política**, não duplicação (§8). Regras que exijam identidade de pedido — entrega em falta, taxa acima do publicado — precisam de fornecedor integrado com middleware.
+
+### Visão de produto — **pós-hackathon**
+
+```
+Agente → BITEBACK-protected payment → Fornecedor
+```
+
+O fornecedor integra uma vez, recebe o selo *Protected by BITEBACK*, e os pagamentos passam a carregar identidade do pedido, regras aplicáveis e garantia financeira. ⛔ **Não construir hoje.** Vai no README e nos últimos 15 segundos do vídeo.
 
 ---
 
-## 4. As três melhores tracks
+## 5. Tracks
 
-Fontes oficiais verificadas em 25 julho 2026: [ETHGlobal Lisbon 2026 — Prizes](https://ethglobal.com/events/lisbon2026/prizes).
+Requisitos verificados em 25 jul 2026: [ETHGlobal Lisbon 2026 — Prizes](https://ethglobal.com/events/lisbon2026/prizes).
 
-### 4.1 World — AgentKit New Use Cases
+> 🔴 Escolhem-se **3 Partner Prizes, não 3 tracks**. Um parceiro com várias tracks conta como 1. **Confirmar no formulário.**
 
-**Pool:** $8,000
+### 5.1 The Graph — Best AI Tooling · $5.000 · 3 slots · prioridade máxima
 
-**Prémios:** $4,000 / $2,500 / $1,500
+Critérios: usefulness to builders (30%), reusability (25%), effective Graph use (20%), technical execution (15%), innovation (10%). **55% do peso é "isto serve outros builders"** — que é o que o Victim Finder MCP é.
 
-**Fit:** 10/10
+**DoD:** `scanViolations`, `findVictims`, `calculateLoss`, `buildEvidencePack` como MCP tools; chamáveis sem abrir o dashboard; schemas Zod previsíveis; origem identificada por endpoint/network/indexedBlock; zero fixtures no caminho principal; README com sample call e response.
 
-Porquê:
+### 5.2 Hedera — AI & Agentic Payments · $6.000 · 2 slots
 
-- o Claim Agent atua em nome de uma carteira realmente afetada;
-- AgentKit distingue um bot de um agente apoiado por um humano único;
-- o estatuto human-backed altera uma autorização económica real: aderir ao claim e receber settlement;
-- evita vários Claim Agents controlados pela mesma pessoa reclamarem o mesmo incidente;
-- é um workflow novo, não login genérico, reputação ou desconto de API.
+*"Build AI agents that move value autonomously on Hedera."*
 
-Requisitos e prova visível:
+🔴 **É a decisão da §1 que ganha esta track.** Com `ACCEPT` manual havia um humano no circuito e o agente não era autónomo. Com regra assinada + bond autorizado, o Settlement Agent deteta, prova e paga **sem intervenção**. É a diferença entre qualificar e ganhar.
 
-| Requisito oficial | Implementação | Prova no demo |
-|---|---|---|
-| Uso meaningful de AgentKit | endpoint `joinClaim` protegido por AgentKit | request do Claim Agent aceite |
-| Verificar human-backed agent | lookup no AgentBook | badge e `humanIdHash` |
-| Fluxo end-to-end | delegação → join → payout | vítima recebe HBAR |
-| Novo workflow/trust model | autorização coletiva anti-Sybil | uma pessoa por incidente |
+**DoD:** o agente executa ≥1 transferência real em testnet sem clique humano; README com setup, arquitetura e payment flow; vídeo ≤5min a mostrar a ação autónoma.
 
-DoD da track:
+### 5.3 Hedera — No Solidity Allowed · $3.000 · 3 slots
 
-- pelo menos um Claim Agent registado ao vivo no AgentBook;
-- idealmente três agentes registados por três humanos distintos;
-- o endpoint rejeita agente não registado;
-- o endpoint rejeita reutilização do mesmo humano no mesmo incidente;
-- a delegação da carteira afetada é verificada separadamente;
-- o README explica por que AgentKit é indispensável.
+**Três** serviços nativos (o requisito são dois): Crypto Service (contas, allowance, payout atómico) + HCS (audit) + Mirror Node (leitura pública).
 
-### 4.2 The Graph — Best AI Tooling for The Graph
+**DoD:** payout testnet real; uma transação com débito aprovado e três créditos; HCS regista regra, provas e payout; Mirror Node confirma.
 
-**Pool:** $5,000
+✅ **Risco eliminado.** Ao cortar o registry, o repositório deixou de ter Solidity. Já não é preciso justificar porque existe um contrato — não existe. Manter a frase no README:
 
-**Prémios:** $2,500 / $1,500 / $1,000
+> **No smart contracts.** The Hedera implementation uses only native services — Crypto Service, Consensus Service and Mirror Node — through the official SDK. This repository contains no Solidity at all.
 
-**Fit:** 10/10
+### 5.4 0G — Best AI Product on 0G · $6.000
 
-Porquê:
+Requisito verbatim: *"Proof you use 0G Compute / Private Computer for inference (this is what makes your product private and verifiable)."*
 
-- o Victim Finder é um MCP reutilizável, não apenas lógica escondida numa app;
-- consulta dados blockchain live através de um subgraph;
-- oferece tools genéricas para procurar violações e construir provas;
-- pode ser configurado para outros merchants e regras com o mesmo schema;
-- o dashboard BITEBACK é o primeiro consumidor da infraestrutura.
+**Inferência é obrigatória.** É por isso que o Policy Compiler (§7.6) existe e é a peça que abre esta track. 0G Storage sozinho não qualifica.
 
-Requisitos e prova visível:
+**DoD:** termos em linguagem natural → regra JSON produzida por inferência em 0G Compute → assinada pelo merchant → detector determinístico encontra as três carteiras; Evidence Pack recuperável de 0G Storage pelo root hash, com sha256 igual ao ancorado em HCS.
 
-| Requisito oficial | Implementação | Prova no demo |
-|---|---|---|
-| Tooling reutilizável | servidor MCP independente | MCP Inspector/cliente |
-| Dados live | endpoint Subgraph Studio/Graph provider | tx hashes e block numbers |
-| Open source | repo público | link GitHub |
-| README/SKILL claro | instalação + tools + exemplo | secção dedicada |
-| Vídeo 2–4 min | demo gravado | link da submissão |
+### Tracks que **não** qualificam — não perder tempo
 
-DoD da track:
+| Track | Porque não |
+|---|---|
+| Hedera Cross-Chain Automation | Exige *"Hedera Schedule Service **with** Axelar GMP"*, ambos. Não temos nenhum |
+| 0G Infra & Tooling | Exige tooling *"that other teams will build their **0G** applications on"*. O Victim Finder é tooling do Graph |
+| Graph Composable Products | Exige compor 2+ produtos ou schema standard. Fallback entre Substreams e Token API é alternativa, não composição |
+| Graph AI Use Case | Exige IA a raciocinar **sobre dados do Graph**. A nossa IA lê termos, não dados |
+| Hedera Tokenization | Não há tokenização |
+| Continuity (todas) | Exigem trabalho datado de evento anterior |
 
-- `scanViolations`, `findVictims`, `calculateLoss` e `buildEvidencePack` aparecem como MCP tools;
-- uma chamada externa consegue usar as tools sem abrir o dashboard;
-- outputs têm JSON schemas previsíveis;
-- a origem é live e identificada por endpoint/deployment/subgraph ID;
-- README inclui configuração, sample call e sample response;
-- nenhuma resposta essencial vem de fixture estática.
-
-### 4.3 Hedera — AI & Agentic Payments on Hedera
-
-**Pool:** $6,000
-
-**Prémio:** até duas equipas recebem $3,000
-
-**Fit:** 9.5/10
-
-Porquê:
-
-- o Settlement Agent move valor autonomamente;
-- o merchant concede uma allowance HBAR limitada;
-- o payout é coletivo e executado na Hedera Testnet;
-- HCS cria um audit trail verificável;
-- Mirror Node prova saldo, allowance e resultado;
-- a integração usa Hedera SDK diretamente, sem smart contracts.
-
-Requisitos e prova visível:
-
-| Requisito oficial | Implementação | Prova no demo |
-|---|---|---|
-| Agente executa operação financeira | settlement automático após `ACCEPT` | transação Hedera |
-| Hedera Testnet | bond, allowance, HCS e payout | links HashScan |
-| Hedera SDK/tooling | `@hashgraph/sdk` | código e README |
-| Repo e arquitetura | docs públicas | GitHub |
-| Vídeo ≤ 5 min | mesmo vídeo principal | link |
-
-DoD da track:
-
-- payout testnet real;
-- transação com débito aprovado do Consumer Bond e três créditos;
-- HCS regista proposal, decisão e payout;
-- Mirror Node confirma transação;
-- README mostra payment flow e IDs;
-- chave do merchant nunca está no browser.
-
-### Tracks secundárias, sem trabalho extra
-
-Se o formulário permitir mais candidaturas sem trocar as três principais:
-
-1. **Hedera — “No Solidity Allowed”**: encaixa se forem demonstrados HBAR allowances/transfers + HCS + Mirror Node.
-2. **The Graph — Best AI Use Case**: encaixa se o agente usa as tools sobre dados live e age sobre o resultado.
-
-Não adicionar features só para estas tracks. Não entrar em Continuity: BITEBACK é um projeto novo.
+**Quatro tracks reais, três parceiros, $20.000 de exposição.** Menos do que as seis listadas antes, mas estas aguentam escrutínio.
 
 ---
 
-## 5. Arquitetura
+## 6. Arquitetura
 
 ```mermaid
 flowchart LR
-    subgraph Source["Source chain — live testnet data"]
-        V1["Victim wallet A"]
-        V2["Victim wallet B"]
-        V3["Victim wallet C"]
-        M["Merchant address"]
-        T["Existing ERC-20"]
-        V1 --> T
-        V2 --> T
-        V3 --> T
-        T --> M
+    subgraph Merchant["Merchant"]
+        TERMS["Published terms<br/>(natural language)"]
+        SIG["Signed rule + funded bond"]
+    end
+
+    subgraph ZeroG["0G"]
+        PC["Policy Compiler<br/>0G Compute"]
+        ST["0G Storage<br/>Evidence Packs"]
+    end
+
+    subgraph Source["Base Sepolia — live on-chain data"]
+        T["USDC transfers"]
     end
 
     subgraph Graph["The Graph"]
-        SG["Payments Subgraph"]
+        SG["Substreams"]
         MCP["Victim Finder MCP"]
-        SG --> MCP
     end
 
     subgraph Biteback["BITEBACK"]
@@ -324,16 +286,6 @@ flowchart LR
         I["Incident Cluster"]
         E["Evidence Pack"]
         S["Settlement Agent"]
-        UI["Dashboard"]
-        MCP --> W --> I --> E --> S
-        UI --> MCP
-        UI --> I
-    end
-
-    subgraph World["World"]
-        CA["Claim Agents"]
-        AB["AgentBook / AgentKit"]
-        CA --> AB --> I
     end
 
     subgraph Hedera["Hedera Testnet"]
@@ -341,317 +293,164 @@ flowchart LR
         P["Atomic HBAR payout"]
         H["HCS audit topic"]
         MN["Mirror Node / HashScan"]
-        S --> B --> P
-        E --> H
-        S --> H
-        B --> MN
-        P --> MN
-        H --> MN
     end
+
+    TERMS --> PC --> SIG
+    T --> SG --> MCP --> W --> I --> E --> S
+    SIG --> W
+    E --> ST
+    ST -->|"root hash"| H
+    S -->|"no human in the loop"| B --> P
+    S --> H
+    P --> MN
+    H --> MN
 ```
 
 ### Decisão cross-chain
 
-- **Dano observado:** transferências ERC-20 numa testnet suportada pelo The Graph.
+- **Dano observado:** transferências ERC-20 live em Base Sepolia, via Substreams.
+- **Política e prova:** 0G Compute (regra) + 0G Storage (conteúdo) + HCS (root hash).
 - **Compensação:** HBAR na Hedera Testnet.
-- **Ligação:** a delegação assinada associa a carteira afetada ao AgentKit agent e à conta Hedera de payout.
-- **Motivo:** The Graph fornece a fonte live; Hedera fornece settlement e auditoria nativos.
-- **Limitação assumida:** no MVP não há bridge nem conversão automática do ativo perdido para HBAR.
+- **Ligação:** a delegação assinada associa carteira afetada → conta Hedera de payout.
+- **Limitação assumida:** não há bridge nem conversão do ativo perdido para HBAR.
 
 ### Rede da fonte
 
-Preferência:
+Base Sepolia · USDC testnet `0x036CbD53842c5426634e7929541eC2318f3dCF7e` · janela fixa com três wallets e duas transferências iguais cada · query live autenticada por JWT Pinax · tx hashes e indexed block no dashboard.
 
-1. Ethereum Sepolia;
-2. ERC-20 de teste existente e verificável;
-3. três wallets enviam duas transferências iguais para o mesmo merchant;
-4. um subgraph BITEBACK indexa `Transfer` desse token.
-
-Só trocar a rede se uma query live e a publicação do subgraph forem comprovadas primeiro. Não construir contrato de pagamentos próprio.
+As wallets e o merchant são controlados pela equipa, o que permite delegações EIP-191 reais e não acusa terceiros. A tool aceita outros merchants, tokens, janelas e payers por configuração.
 
 ---
 
-## 6. Componentes
+## 7. Componentes
 
-### 6.1 Biteback Watcher
+### 7.1 Biteback Watcher
 
-Responsabilidade:
+Pede pagamentos ao Victim Finder, aplica a regra **assinada**, deduplica scans, cria ou atualiza o Incident Cluster. Não faz inferência jurídica, classificação por LLM nem settlement.
 
-- pedir pagamentos ao Victim Finder MCP;
-- aplicar uma regra determinística;
-- deduplicar scans;
-- criar ou atualizar um Incident Cluster.
+Trigger do MVP: botão `Scan for violations`. Sem cron.
 
-Não faz:
+### 7.2 The Graph — Substreams
 
-- inferência jurídica;
-- classificação por LLM;
-- settlement;
-- verificação humana.
-
-Trigger do MVP:
-
-- botão `Scan for violations`;
-- sem cron;
-- mesma função reutilizável por CLI/API.
-
-### 6.2 Payments Subgraph
-
-Indexa apenas o necessário:
-
-```graphql
-type Payment @entity(immutable: true) {
-  id: Bytes!
-  txHash: Bytes!
-  logIndex: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  token: Bytes!
-  payer: Bytes!
-  merchant: Bytes!
-  amount: BigInt!
-}
-```
-
-Identificador:
+Stream `map_transfers` no endpoint Base Sepolia, normalizado para:
 
 ```text
-paymentId = txHash + "-" + logIndex
+txnHash, blockNumber, blockTimestamp, tokenAddr, from, to, value
+paymentId = txnHash + "-" + receipt.logIndex
 ```
 
-Filtros da query:
+Filtros: network, merchant, token, payers configurados, janela e intervalo de blocos. O Substreams descobre os eventos; o RPC cruza os receipts para obter o `logIndex` canónico e impedir colisões dentro da mesma transação.
 
-- `merchant == configuredMerchant`;
-- `token == configuredToken`;
-- `timestamp >= windowStart`;
-- ordem por `timestamp asc`;
-- paginação explícita.
+**Fallback:** Token API da Pinax. Continua a ser dados live do Graph. Máximo 90 minutos em Substreams antes de trocar.
 
-### 6.3 Victim Finder MCP
-
-Tools públicas:
+### 7.3 Victim Finder MCP
 
 ```text
-scanViolations(ruleId, from, to)
-findVictims(incidentId)
-calculateLoss(incidentId)
-buildEvidencePack(incidentId)
+scanViolations(ruleId, from, to)   → violações, com indexedBlock e origem
+findVictims(incidentId)            → só carteiras com violação confirmada
+calculateLoss(incidentId)          → recalcula server-side; nunca aceita montantes do cliente
+buildEvidencePack(incidentId)      → JSON canónico + evidenceHash + rootHash
 ```
 
-O MCP é a infraestrutura reutilizável. A app chama exatamente as mesmas funções que os clientes MCP.
+O MCP é a infraestrutura. A app chama exatamente as mesmas funções que os clientes MCP.
 
-#### `scanViolations`
+### 7.4 Delegação da carteira afetada
 
-Input:
-
-```json
-{
-  "ruleId": "rule_duplicate_daily_v1",
-  "from": 1784937600,
-  "to": 1785024000
-}
-```
-
-Output:
-
-```json
-{
-  "source": "the-graph",
-  "live": true,
-  "indexedBlock": 9999999,
-  "ruleId": "rule_duplicate_daily_v1",
-  "violations": [
-    {
-      "victim": "0x...",
-      "validPaymentId": "0x...-0",
-      "duplicatePaymentIds": ["0x...-1"],
-      "lossSourceUnits": "2000000"
-    }
-  ]
-}
-```
-
-#### `findVictims`
-
-Devolve apenas carteiras para as quais existe pelo menos uma cobrança excedente confirmada.
-
-#### `calculateLoss`
-
-Recalcula o prejuízo a partir dos pagamentos; nunca aceita montantes enviados pelo cliente.
-
-#### `buildEvidencePack`
-
-Produz JSON canónico, hash e referências on-chain.
-
-### 6.4 Claim Agent
-
-Cada Claim Agent:
-
-1. tem uma wallet EVM própria;
-2. é registado no World AgentBook;
-3. recebe uma delegação assinada pela carteira afetada;
-4. chama o recurso AgentKit/x402 através de `agentkit.fetch`;
-5. indica a conta Hedera de payout;
-6. adere apenas ao incidente indicado;
-7. não pode alterar o montante calculado.
-
-Configuração do recurso:
-
-```text
-statement: Verify that this claim agent is backed by a unique human
-mode: free-trial
-uses: 1 per human and incident
-canonical AgentBook: World Chain
-```
-
-O fallback de pagamento x402 nunca concede elegibilidade para um claim. O handler exige explicitamente a verificação human-backed; pagar uma request não transforma um bot numa vítima elegível.
-
-Permissões da delegação:
-
-```text
-- join incident <incidentId>
-- submit the referenced evidence
-- accept the deterministic compensation amount
-- receive payout at Hedera account <accountId>
-- expires at <timestamp>
-```
-
-Mensagem assinada:
+Sem agentes e sem registry. A carteira afetada assina:
 
 ```text
 BITEBACK_DELEGATION_V1
 incidentId=<incidentId>
 victim=<sourceWallet>
-agent=<agentWallet>
 payout=<hederaAccountId>
 nonce=<nonce>
 expiresAt=<timestamp>
 ```
 
-Validações:
+Validações: assinatura EIP-191 recupera a carteira afetada; a carteira pertence ao incidente; nonce não usado; não expirou; conta Hedera válida; perda recalculada server-side.
 
-- assinatura EIP-191 recupera a wallet afetada;
-- wallet pertence ao incidente;
-- agent da mensagem é o caller;
-- agent está human-backed no AgentBook;
-- `humanIdHash` ainda não aderiu ao incidente;
-- nonce ainda não foi usado;
-- delegação não expirou;
-- payout account é válida;
-- perda é recalculada server-side.
+### 7.5 Consumer Bond e Settlement Agent
 
-### 6.5 Merchant Agent
+```text
+Bond owner:  merchant Hedera account   ·  Funding: 100 HBAR
+Spender:     Settlement Agent account  ·  Allowance: 100 HBAR
+```
 
-Recebe:
+O Settlement Agent valida a regra assinada, recalcula o payout, verifica estado, saldo e allowance, constrói **uma** `TransferTransaction` com débito aprovado e N créditos, confirma o receipt, publica no HCS e impede replay.
+
+```text
+Bond owner  -6 HBAR   (approved transfer)
+Victim A    +2 HBAR
+Victim B    +2 HBAR
+Victim C    +2 HBAR
+Sum          0 HBAR
+```
+
+🔴 **Condições para pagar sem intervenção** — todas verificadas imediatamente antes:
+
+```text
+rule.signature válida e signer allowlisted
+evidenceHash == hash recalculado agora
+totalPayout <= allowance
+totalPayout <= bondBalance - feeBuffer
+incidente ainda não liquidado
+```
+
+Falhar qualquer uma bloqueia o pagamento com erro nomeado. **Nenhuma delas é um clique humano.**
+
+🔴 **Limitação honesta:** uma allowance não é escrow. O merchant pode revogá-la ou esvaziar a conta. O MVP comprova funding e autorização em tempo real; produção exigiria custódia mais forte. Não chamar "trustless guarantee".
+
+**P1, se sobrar tempo:** janela de contestação de N minutos entre `EVIDENCE_READY` e o payout, em que o merchant pode apresentar contra-prova. É a resposta natural a *"e se a deteção estiver errada?"*.
+
+### 7.6 Policy Compiler — 0G Compute
+
+`src/policyCompiler.ts`. Converte os termos publicados do merchant numa regra determinística.
+
+```
+termos do merchant (texto)
+        │
+        ▼  inferência em 0G Compute
+regra JSON candidata
+        │
+        ▼  merchant revê e ASSINA (EIP-191)
+regra registada  →  HCS RULE_REGISTERED
+        │
+        ▼  detector determinístico (sem LLM)
+violações, carteiras afetadas, montantes  →  payout automático
+```
+
+Input:
+
+> *"Subscribers are billed once per calendar day. Charges beyond the first in a UTC day are refunded in full."*
+
+Output:
 
 ```json
-{
-  "incidentId": "inc_...",
-  "evidenceHash": "sha256:...",
-  "victims": 3,
-  "totalHbar": "6",
-  "deadline": "2026-07-25T23:00:00Z"
-}
+{ "maxChargesPerDay": 1, "bucketSeconds": 86400, "sameAmountRequired": true, "compensationBps": 10000 }
 ```
 
-Pode:
+🔴 **A linha vermelha.** O modelo propõe a **regra**, nunca o resultado. Não vê pagamentos, não conta cobranças, não calcula montantes, não escolhe destinatários. A regra só vale depois de assinada. Depois disso o LLM está fora do circuito e a deteção é 100% reproduzível.
 
-- `ACCEPT`;
-- `REJECT`, com `counterEvidenceHash` e motivo curto.
+**Porque é a resposta certa à track:** satisfaz o requisito de inferência real sem pôr um modelo a decidir dinheiro. Um agente que devolvesse *"claim válido, 4 HBAR, confiança 97%"* falharia o teste que interessa — o merchant estaria a pagar com base num palpite probabilístico. Aqui o merchant assina exatamente a regra que vai ser aplicada, e qualquer pessoa recalcula o resultado.
 
-Decisão assinada:
+**Validação obrigatória do output**, antes de chegar ao merchant: schema Zod; `maxChargesPerDay >= 1`; `bucketSeconds` num conjunto permitido; `compensationBps <= 10000`. JSON inválido do modelo não pode partir o servidor.
 
-```text
-BITEBACK_DECISION_V1
-incidentId=<incidentId>
-evidenceHash=<hash>
-decision=<ACCEPT|REJECT>
-totalTinybar=<amount>
-nonce=<nonce>
-expiresAt=<timestamp>
-```
+**Transporte** — por esta ordem:
 
-O MVP não resolve uma rejeição. Regista-a e termina o incidente em `REJECTED`.
+1. **SDK oficial** `@0gfoundation/0g-compute-ts-sdk@0.9.0`. Dá-lhe **45 minutos**. Se exigir financiar um ledger on-chain e isso não sair rápido, passa ao 2.
+2. **Router do 0G Foundation** — `OG_ROUTER_BASE`, modelo `qwen2.5-omni` (32k ctx). ✅ **Verificado a funcionar a 25 jul, 11:00**: `/models` responde com modelos `owned_by: "0G Foundation"`. Documentar no README que é o router do 0G.
 
-### 6.6 Settlement Agent
+🔴 Não perder o Policy Compiler por causa do transporte. A track pede inferência em 0G Compute — ambos os caminhos são 0G Compute.
 
-Responsabilidade:
+**Fallback final:** se o 0G Compute falhar por completo, mostrar a regra pré-assinada como *"pre-signed rule"* e dizê-lo no vídeo. Perde-se $6.000, mantém-se tudo o resto.
 
-- validar decisão;
-- recalcular payout;
-- verificar estado do incidente;
-- verificar bond balance e allowance;
-- construir uma transferência atómica;
-- confirmar receipt;
-- publicar o resultado no HCS;
-- impedir replay.
-
-Uma camada de modelo pode explicar o incidente e invocar tools, mas:
-
-- não cria vítimas;
-- não calcula montantes;
-- não escolhe destinatários;
-- não assina decisões;
-- não ignora invariantes.
-
-### 6.7 Consumer Bond
-
-O MVP usa:
+### 7.7 HCS Audit
 
 ```text
-Bond owner: merchant Hedera account
-Spender: Settlement Agent Hedera account
-Asset: HBAR
-Funding target: 100 HBAR
-Allowance target: 100 HBAR
-```
-
-Setup:
-
-1. merchant mantém pelo menos 100 HBAR numa conta dedicada;
-2. merchant aprova 100 HBAR ao Settlement Agent com `AccountAllowanceApproveTransaction`;
-3. dashboard lê saldo e allowance;
-4. badge `Protected` só aparece se ambos cobrirem o limite anunciado.
-
-Payout:
-
-```text
-Bond owner       -6 HBAR  approved transfer
-Victim A         +2 HBAR
-Victim B         +2 HBAR
-Victim C         +2 HBAR
-Sum               0 HBAR
-```
-
-Usar uma única `TransferTransaction`, para crédito coletivo atómico.
-
-Limitação honesta:
-
-> Uma allowance não é escrow imutável. O merchant pode revogá-la ou esvaziar a conta. O MVP comprova funding e autorização em tempo real; uma versão de produção exigiria um mecanismo de custódia/escrow mais forte.
-
-Não chamar ao MVP “trustless guarantee”.
-
-### 6.8 HCS Audit
-
-Um único topic para o MVP:
-
-```text
-HCS_TOPIC_ID=<topic>
-memo=BITEBACK_AUDIT_V1
-```
-
-Eventos:
-
-```text
-RULE_REGISTERED
-BOND_STATUS
-INCIDENT_OPENED
-CLAIM_JOINED
-SETTLEMENT_PROPOSED
-MERCHANT_ACCEPTED
-MERCHANT_REJECTED
-PAYOUT_SUBMITTED
-PAYOUT_CONFIRMED
+RULE_REGISTERED · BOND_STATUS · INCIDENT_OPENED · CLAIM_JOINED
+EVIDENCE_ANCHORED (com rootHash de 0G Storage)
+PAYOUT_SUBMITTED · PAYOUT_CONFIRMED
+MERCHANT_REJECTED (só modo não integrado)
 ```
 
 Envelope:
@@ -669,367 +468,271 @@ Envelope:
 }
 ```
 
-Política:
-
-- HCS guarda hashes e referências, não Evidence Packs grandes;
-- não publicar human ID bruto;
-- não publicar chaves, assinaturas completas ou PII;
-- o dashboard reconstrói a timeline com Mirror Node.
+HCS guarda hashes e referências, não Evidence Packs. Não publicar chaves, assinaturas completas nem PII.
 
 ---
 
-## 7. Regra determinística
+## 8. A regra determinística
+
+🔴 **Nomenclatura — importa.** Isto **não é deteção de pagamento duplicado**. Sem `requestId` no pagamento, duas cobranças iguais no mesmo dia podem ser duas compras legítimas, e chamar-lhes "duplicado" é uma afirmação que não conseguimos sustentar.
+
+O que medimos é: **cobranças acima do máximo diário que a política do merchant permite**. A violação é da política, não da intenção. É mais defensável e liga-se diretamente ao Policy Compiler: o merchant escreveu a regra, assinou-a, e foi medido contra ela.
 
 ### Regra registada
 
 ```json
 {
-  "id": "rule_duplicate_daily_v1",
+  "id": "rule_max_daily_charge_v1",
   "version": 1,
   "merchant": "0x...",
-  "token": "0x...",
-  "sourceChain": "eip155:11155111",
-  "maxPayments": 1,
+  "token": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "sourceChain": "eip155:84532",
+  "maxChargesPerDay": 1,
   "bucketSeconds": 86400,
   "sameAmountRequired": true,
   "effectiveFrom": 1784937600,
-  "compensationBps": 10000
+  "compensationBps": 10000,
+  "compiledBy": "0g-compute",
+  "signer": "0x...",
+  "signature": "0x..."
 }
 ```
 
 ### Semântica
 
-Para cada combinação:
+Para cada `(ruleId, merchant, token, payer, UTC day bucket, amount)`, ordenar por `(timestamp asc, blockNumber asc, logIndex asc)`. As primeiras `maxChargesPerDay` cobranças estão dentro da política. As seguintes são **excedentes**.
 
 ```text
-(ruleId, merchant, token, payer, UTC day bucket, amount)
+bucket          = floor(timestamp / 86400)
+excessCount     = max(0, chargeCount - maxChargesPerDay)
+lossSourceUnits = sum(amount of excess charges)
+compensation    = excessCount * refundPerExcessTinybar
 ```
 
-ordenar pagamentos por:
-
-```text
-(timestamp asc, blockNumber asc, logIndex asc)
-```
-
-O primeiro pagamento é válido. Todos os seguintes são duplicados.
-
-### Fórmula
-
-```text
-bucket = floor(timestamp / 86400)
-duplicateCount = max(0, paymentCount - maxPayments)
-lossSourceUnits = sum(amount of duplicate payments)
-compensationHbar = configured demo compensation per duplicate
-```
-
-No MVP, o câmbio source token → HBAR não é calculado. A regra contém explicitamente a compensação HBAR por cobrança duplicada:
-
-```text
-refundPerDuplicateTinybar = 200_000_000
-```
-
-Isto evita oráculos, volatilidade e uma conversão falsa.
+Sem câmbio source token → HBAR. A regra contém a compensação fixa (`refundPerExcessTinybar = 200_000_000`), o que evita oráculos, volatilidade e uma conversão falsa.
 
 ### Confirmações e reorg
 
-- considerar apenas blocos já indexados;
-- guardar `indexedBlock`;
-- exigir uma margem de confirmações configurada;
-- nunca pagar um evento desaparecido após reorg;
-- voltar a consultar os payment IDs imediatamente antes da proposta.
+Só blocos indexados; guardar `indexedBlock`; margem de confirmações configurada; nunca pagar evento desaparecido após reorg; **reconsultar os payment IDs imediatamente antes do payout**.
 
 ### Invariantes
 
 ```text
 victimCount > 0
 totalPayout = sum(victimPayouts)
-totalPayout <= acceptedAmount
 totalPayout <= allowance
 totalPayout <= bondBalance - feeBuffer
+rule.signature válida e signer allowlisted
 each victim appears once
 each paymentId appears once
-each humanIdHash appears once per incident
-evidenceHash == acceptedEvidenceHash
+evidenceHash == sha256(canonical evidence)
+evidenceHash == sha256(bytes downloaded from 0G Storage rootHash)
 incident can settle once
 ```
 
 ---
 
-## 8. Evidence Pack
-
-### Estrutura
+## 9. Evidence Pack + 0G Storage
 
 ```json
 {
   "schema": "biteback.evidence.v1",
   "incidentId": "inc_...",
-  "rule": {
-    "id": "rule_duplicate_daily_v1",
-    "hash": "sha256:...",
-    "merchant": "0x...",
-    "token": "0x...",
-    "sourceChain": "eip155:11155111"
-  },
+  "rule": { "id": "rule_max_daily_charge_v1", "hash": "sha256:...", "signer": "0x...", "signature": "0x..." },
   "source": {
-    "provider": "the-graph",
-    "subgraphId": "<SUBGRAPH_ID>",
-    "deploymentId": "<DEPLOYMENT_ID>",
-    "indexedBlock": 9999999,
+    "provider": "the-graph-substreams",
+    "endpoint": "https://basesepolia.substreams.pinax.network",
+    "network": "base-sepolia",
+    "indexedBlock": 44595108,
     "queriedAt": "2026-07-25T18:00:00.000Z"
   },
   "victims": [
     {
       "sourceWallet": "0x...",
-      "validPayment": {
-        "id": "0x...-0",
-        "txHash": "0x...",
-        "timestamp": 1784990000,
-        "amount": "2000000"
-      },
-      "duplicatePayments": [
-        {
-          "id": "0x...-1",
-          "txHash": "0x...",
-          "timestamp": 1784990300,
-          "amount": "2000000"
-        }
-      ],
-      "lossSourceUnits": "2000000",
+      "withinPolicy": { "id": "0x...-0", "txHash": "0x...", "timestamp": 1784990000, "amount": "1000" },
+      "excessCharges": [{ "id": "0x...-1", "txHash": "0x...", "timestamp": 1784990300, "amount": "1000" }],
+      "lossSourceUnits": "1000",
       "payoutTinybar": "200000000"
     }
   ],
-  "totals": {
-    "victims": 3,
-    "duplicatePayments": 3,
-    "payoutTinybar": "600000000"
-  }
+  "totals": { "victims": 3, "excessCharges": 3, "payoutTinybar": "600000000" }
 }
 ```
 
 ### Canonicalização
 
-- ordenar vítimas por `sourceWallet`;
-- ordenar pagamentos por `paymentId`;
-- números monetários como strings inteiras;
-- timestamps ISO ou Unix, nunca locale;
-- serializar com JSON canónico;
-- `evidenceHash = sha256(canonicalJson)`.
+Carteiras ordenadas por `sourceWallet`; pagamentos por `paymentId`; montantes como strings inteiras; timestamps nunca em locale; JSON canónico com chaves ordenadas. `evidenceHash = sha256(canonicalJson)`.
+
+Determinismo é obrigatório: o mesmo incidente produz o mesmo hash em duas execuções, independentemente da ordem em que o Graph devolveu os eventos. **Já testado** (`Graph ordering does not change incident or evidence hash`).
 
 ### IDs
 
 ```text
-violationId = sha256(ruleId | victim | bucket | sortedDuplicatePaymentIds)
+violationId = sha256(ruleId | victim | bucket | sortedExcessPaymentIds)
 incidentId  = sha256(ruleId | merchant | bucket | sortedViolationIds)
 claimId     = sha256(incidentId | victim)
 ```
 
+### Fluxo de armazenamento
+
+```
+pack canónico
+   ├── sha256 ─────────► evidenceHash
+   ├── upload ─────────► 0G Storage ──► rootHash
+   └── HCS EVIDENCE_ANCHORED: { incidentId, evidenceHash, rootHash, indexedBlock }
+```
+
+**Porquê:** a mensagem HCS tem ~1KB úteis; o pack tem vários KB. O HCS ancora **imutabilidade e ordem**; o 0G Storage guarda **o conteúdo**. Qualquer pessoa descarrega pelo `rootHash`, recalcula o sha256 e compara com o HCS.
+
+**Fallback:** servir o pack em `GET /api/incidents/:id/evidence` e publicar só o `evidenceHash`. Penúltimo corte.
+
 ---
 
-## 9. State machine
+## 10. State machine
 
 ```mermaid
 stateDiagram-v2
     [*] --> DETECTED
     DETECTED --> CLAIMING: incident opened
-    CLAIMING --> PROPOSED: eligible claims frozen
-    PROPOSED --> ACCEPTED: signed ACCEPT
-    PROPOSED --> REJECTED: signed REJECT
-    ACCEPTED --> SETTLING: bond checks pass
+    CLAIMING --> EVIDENCE_READY: claims frozen, pack anchored
+    EVIDENCE_READY --> SETTLING: signed rule + bond checks pass
     SETTLING --> SETTLED: receipt SUCCESS
     SETTLING --> SETTLEMENT_FAILED: receipt/error
     SETTLEMENT_FAILED --> SETTLING: safe retry after reconciliation
+    EVIDENCE_READY --> REJECTED: non-integrated merchant declines
     REJECTED --> [*]
     SETTLED --> [*]
 ```
 
-### Transições
-
 | De | Para | Autoridade | Pré-condições |
 |---|---|---|---|
-| `DETECTED` | `CLAIMING` | Watcher | Evidence inicial válido |
-| `CLAIMING` | `PROPOSED` | Settlement Agent | claims elegíveis congelados |
-| `PROPOSED` | `ACCEPTED` | Merchant | assinatura e evidence hash válidos |
-| `PROPOSED` | `REJECTED` | Merchant | assinatura válida |
-| `ACCEPTED` | `SETTLING` | Settlement Agent | bond solvente |
+| `DETECTED` | `CLAIMING` | Watcher | evidence inicial válido |
+| `CLAIMING` | `EVIDENCE_READY` | Settlement Agent | claims congelados, pack em 0G Storage, hash em HCS |
+| `EVIDENCE_READY` | `SETTLING` | **Settlement Agent, automático** | regra assinada, allowance e bond cobrem |
 | `SETTLING` | `SETTLED` | Hedera receipt | `SUCCESS` confirmado |
+| `EVIDENCE_READY` | `REJECTED` | Merchant não integrado | assinatura válida de `REJECT` |
 
-Não existe auto-accept por timeout no MVP. Mostrar deadline é P1; executar timeout é pós-hackathon.
+🔴 **Não há transição `ACCEPTED` no modo integrado.** O consentimento foi dado na regra assinada e na allowance. `SETTLED` é terminal e idempotente: um segundo pedido devolve o mesmo `payoutTxId`.
 
 ---
 
-## 10. API mínima
+## 11. API mínima
 
 ```text
 GET  /api/health
+GET  /api/config
 GET  /api/bond
+POST /api/rules/compile          termos → regra candidata (0G Compute)
+POST /api/rules/sign             regra assinada pelo merchant → HCS
 POST /api/scan
 GET  /api/incidents
 GET  /api/incidents/:id
-POST /api/incidents/:id/join
-POST /api/incidents/:id/propose
-POST /api/incidents/:id/decision
-POST /api/incidents/:id/settle
+POST /api/incidents/:id/join     delegação EIP-191 da carteira afetada
+POST /api/incidents/:id/freeze   congela claims, gera pack, ancora em 0G + HCS
+POST /api/incidents/:id/settle   payout automático (verifica, não pergunta)
+POST /api/incidents/:id/decision só modo não integrado: REJECT assinado
 GET  /api/incidents/:id/audit
 POST /mcp
 ```
 
-### Autorizações
-
-| Endpoint | Caller | Proteção |
-|---|---|---|
-| `/scan` | operador/demo | token server-side simples |
-| `/join` | Claim Agent | AgentKit + delegação assinada |
-| `/propose` | Settlement Agent | chamada interna |
-| `/decision` | Merchant Agent | assinatura EIP-191 |
-| `/settle` | Settlement Agent | estado + idempotency key |
-| reads | público | sem segredos |
-
 ### Erros previsíveis
 
-```json
-{
-  "error": {
-    "code": "CLAIM_HUMAN_ALREADY_USED",
-    "message": "This human-backed agent already joined this incident."
-  }
-}
-```
-
-Códigos necessários:
-
 ```text
-RULE_NOT_FOUND
-GRAPH_QUERY_FAILED
-NO_VIOLATIONS
-VICTIM_NOT_IN_INCIDENT
-INVALID_DELEGATION
-DELEGATION_EXPIRED
-AGENT_NOT_HUMAN_BACKED
-CLAIM_HUMAN_ALREADY_USED
+RULE_NOT_FOUND · RULE_NOT_SIGNED · INVALID_RULE_SIGNATURE
+POLICY_COMPILE_FAILED · INVALID_COMPILED_RULE
+GRAPH_QUERY_FAILED · NO_VIOLATIONS
+VICTIM_NOT_IN_INCIDENT · INVALID_DELEGATION · DELEGATION_EXPIRED
 CLAIM_ALREADY_JOINED
-INVALID_MERCHANT_SIGNATURE
-EVIDENCE_HASH_MISMATCH
-BOND_INSUFFICIENT
-ALLOWANCE_INSUFFICIENT
-INCIDENT_NOT_SETTLEABLE
-PAYOUT_ALREADY_EXECUTED
-HEDERA_TRANSACTION_FAILED
+EVIDENCE_HASH_MISMATCH · EVIDENCE_STORAGE_FAILED
+BOND_INSUFFICIENT · ALLOWANCE_INSUFFICIENT
+INCIDENT_NOT_SETTLEABLE · PAYOUT_ALREADY_EXECUTED · HEDERA_TRANSACTION_FAILED
 ```
 
 ---
 
-## 11. Persistência
+## 12. Persistência
 
-Para o hackathon:
-
-- um ficheiro JSON local ou SQLite;
-- escolher um, não ambos;
-- preferência: SQLite se houver deploy persistente disponível; JSON local para execução e vídeo;
-- sem ORM;
-- sem migrations framework;
-- sem cache adicional.
-
-Entidades mínimas:
+Um ficheiro JSON local. Sem ORM, sem migrations, sem cache.
 
 ```text
-rules
-payments_seen
-incidents
-claims
-decisions
-payouts
-audit_events
-used_nonces
-human_usage
+rules · payments_seen · incidents · claims · payouts · audit_events · used_nonces
 ```
 
-Requisitos:
-
-- write atómico;
-- uniqueness para IDs e nonces;
-- estado recuperável depois de restart;
-- nenhum private key ou human ID bruto persistido.
+Write atómico; uniqueness para IDs e nonces; estado recuperável após restart; nenhuma private key persistida.
 
 ---
 
-## 12. Estrutura do repositório
-
-Objetivo: um package, um servidor, um dashboard, um subgraph.
+## 13. Estrutura do repositório
 
 ```text
 .
-├── README.md
-├── BLUEPRINT.md
-├── package.json
-├── tsconfig.json
-├── .env.example
+├── README.md · BLUEPRINT.md · ARCHITECTURE.png
+├── package.json · tsconfig.json · .env.example
 ├── src
-│   ├── server.ts
-│   ├── domain.ts
-│   ├── graph.ts
-│   ├── victimFinder.ts
-│   ├── world.ts
-│   ├── hedera.ts
-│   └── mcp.ts
-├── public
-│   └── index.html
-├── subgraph
-│   ├── schema.graphql
-│   ├── subgraph.yaml
-│   └── src
-│       └── mapping.ts
+│   ├── server.ts          Hono + rotas
+│   ├── domain.ts          types, regras, state machine, erros, store
+│   ├── graph.ts           Substreams / Token API
+│   ├── victimFinder.ts    as quatro operações
+│   ├── mcp.ts             expõe essas operações
+│   ├── claims.ts          delegação EIP-191 da carteira afetada
+│   ├── policyCompiler.ts  0G Compute: termos → regra
+│   ├── evidence.ts        canonicalização + 0G Storage
+│   └── hedera.ts          bond, allowance, payout, HCS
+├── public/index.html      dashboard
 ├── scripts
-│   └── setupDemo.ts
-└── test
-    └── detector.test.ts
+│   ├── setupDemo.ts       bond, allowance, tópico, chaves
+│   └── joinClaims.ts      delegações das carteiras afetadas
+└── test/detector.test.ts
 ```
 
-Regras:
-
-- só separar um ficheiro quando tiver uma responsabilidade externa clara;
-- sem `utils/`, `helpers/`, `services/`, `providers/` ou wrappers genéricos;
-- `domain.ts` contém types, regras e state machine;
-- `graph.ts`, `world.ts` e `hedera.ts` são integrações diretas;
-- `victimFinder.ts` contém as quatro operações;
-- `mcp.ts` apenas expõe essas operações;
-- `setupDemo.ts` cria/verifica dados necessários e é idempotente;
-- não recuperar código legacy.
+**Sem `contracts/`.** Sem `utils/`, `helpers/`, `services/`, `providers/`. Não recuperar código legacy.
 
 ---
 
-## 13. Configuração
+## 14. Configuração
 
-Variáveis esperadas:
+```env
+PORT=8403
+PUBLIC_BASE_URL=http://localhost:8403
+DATA_FILE=data/biteback.json
 
-```dotenv
-# Server
-PORT=8402
-PUBLIC_BASE_URL=
-OPERATOR_TOKEN=
+# The Graph / Pinax
+PINAX_JWT=
+PINAX_BASE=https://api.pinax.network/v1
+SOURCE_SUBSTREAMS_ENDPOINT=
+SOURCE_SUBSTREAMS_PACKAGE=
+SOURCE_SUBSTREAMS_MODULE=
 
-# Source chain / The Graph
-SOURCE_CHAIN_ID=11155111
-SOURCE_RPC_URL=
-SOURCE_TOKEN_ADDRESS=
+# Fonte
+SOURCE_NETWORK=base-sepolia
+SOURCE_CHAIN_ID=84532
+SOURCE_TOKEN_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 SOURCE_MERCHANT_ADDRESS=
-SOURCE_MERCHANT_PRIVATE_KEY=
-VICTIM_A_PRIVATE_KEY=
-VICTIM_B_PRIVATE_KEY=
-VICTIM_C_PRIVATE_KEY=
-GRAPH_API_KEY=
-SUBGRAPH_QUERY_URL=
-SUBGRAPH_ID=
-SUBGRAPH_DEPLOYMENT_ID=
+SOURCE_VICTIM_ADDRESSES=
+SOURCE_WINDOW_START=
+SOURCE_WINDOW_END=
+SOURCE_START_BLOCK=
+SOURCE_STOP_BLOCK=
+SOURCE_RPC_URL=
+SOURCE_VICTIM_A_PRIVATE_KEY=
+SOURCE_VICTIM_B_PRIVATE_KEY=
+SOURCE_VICTIM_C_PRIVATE_KEY=
 
-# World AgentKit
-WORLD_AGENT_A_PRIVATE_KEY=
-WORLD_AGENT_B_PRIVATE_KEY=
-WORLD_AGENT_C_PRIVATE_KEY=
-WORLD_X402_FACILITATOR=https://x402-worldchain.vercel.app/facilitator
-WORLD_PAY_TO_ADDRESS=
+# 0G — Compute (política) + Storage (provas)
+OG_EVM_RPC=https://evmrpc-testnet.0g.ai
+OG_INDEXER=https://indexer-storage-testnet-turbo.0g.ai
+OG_PRIVATE_KEY=
+OG_ROUTER_BASE=
+OG_ROUTER_KEY=
+OG_MODEL=qwen2.5-omni
+
+# Merchant
+MERCHANT_DECISION_PRIVATE_KEY=
+SOURCE_MERCHANT_SIGNER=
 
 # Hedera
 HEDERA_NETWORK=testnet
+HEDERA_MIRROR_NODE_URL=https://testnet.mirrornode.hedera.com
 HEDERA_OPERATOR_ACCOUNT_ID=
 HEDERA_OPERATOR_PRIVATE_KEY=
 HEDERA_BOND_ACCOUNT_ID=
@@ -1040,1004 +743,292 @@ HEDERA_VICTIM_A_ACCOUNT_ID=
 HEDERA_VICTIM_B_ACCOUNT_ID=
 HEDERA_VICTIM_C_ACCOUNT_ID=
 HCS_TOPIC_ID=
-HEDERA_MIRROR_NODE_URL=https://testnet.mirrornode.hedera.com
+REFUND_PER_EXCESS_TINYBAR=200000000
+BOND_TARGET_TINYBAR=10000000000
 ```
 
-Política:
-
-- `.env` nunca entra no Git;
-- `.env.example` não contém valores reais;
-- browser recebe apenas IDs/endpoints públicos;
-- todas as private keys ficam no servidor;
-- o merchant assina allowance e decisões fora do browser público;
-- rodar secret scan antes do push.
+**Removidas:** `CLAIM_AGENT_*`, `AGENT_ID_SALT`, `CLAIM_AGENT_REGISTRY_ADDRESS` — não há registry.
 
 ---
 
-## 14. Plano de sprints
-
-O relógio é relativo a `T0 = início da implementação BITEBACK`. Feature freeze obrigatória em `T+22h`. Reservar o final para vídeo e submissão.
-
-Assunção: uma pessoa a construir. Se houver equipa, só paralelizar Graph, World e Hedera depois das decisões do Sprint 0; manter um único owner para o fluxo E2E.
-
-### Sprint 0 — Freeze técnico e acessos (`T+0h → T+1h`) — P0
-
-Objetivo: provar todas as dependências externas antes de construir UI.
-
-Tarefas:
-
-- confirmar deadline no dashboard ETHGlobal;
-- confirmar as três tracks no formulário;
-- criar/validar Graph API key;
-- escolher rede e ERC-20 live;
-- provar uma query Graph live;
-- validar três wallets source;
-- criar/validar contas Hedera Testnet;
-- transferir 100 HBAR para o bond;
-- provar uma transferência Hedera mínima;
-- criar HCS topic;
-- instalar AgentKit;
-- recrutar três humanos para registar três Claim Agents.
-
-DoD:
-
-- tx hash source válido;
-- query Graph responde;
-- Hedera receipt `SUCCESS`;
-- HCS message visível;
-- pelo menos um AgentKit registration concluído;
-- decisões registadas no topo do README/blueprint.
-
-Kill criteria:
-
-- se o subgraph não puder indexar a rede escolhida em 30 minutos, mudar para Ethereum Sepolia;
-- se três verificações World não estiverem disponíveis, garantir uma real e adaptar o demo sem fingir unicidade.
-
-### Sprint 1 — Dados live e subgraph (`T+1h → T+4h`) — P0
-
-Tarefas:
-
-- configurar subgraph sobre o ERC-20 existente;
-- indexar `Transfer`;
-- filtrar merchant na query, não no mapping;
-- publicar no Graph provider;
-- gerar seis transferências live;
-- confirmar indexação dos seis eventos;
-- guardar links dos explorers.
-
-DoD:
-
-```text
-3 payers × 2 transfers
-same merchant
-same token
-same amount per payer
-same UTC bucket
-all returned by a live Graph query
-```
-
-Fallback:
-
-- usar transações testnet live previamente geradas durante o evento;
-- nunca substituir a fonte principal por JSON estático.
-
-### Sprint 2 — Detector e Victim Finder MCP (`T+4h → T+8h`) — P0
-
-Tarefas:
-
-- implementar a regra;
-- criar IDs determinísticos;
-- implementar as quatro operações;
-- expor MCP Streamable HTTP;
-- adicionar input/output schemas;
-- testar via MCP Inspector;
-- criar Evidence Pack canónico;
-- adicionar unit tests.
-
-DoD:
-
-- encontra exatamente três vítimas;
-- calcula exatamente três duplicados;
-- calcula 2 HBAR por vítima e 6 HBAR total;
-- repetir o scan não duplica o incidente;
-- um cliente MCP externo obtém o Evidence Pack.
-
-Não fazer:
-
-- natural-language query genérica;
-- registry de regras extensível;
-- schemas multi-protocolo;
-- LLM dentro do detector.
-
-### Sprint 3 — Hedera bond e audit (`T+8h → T+11h`) — P0
-
-Tarefas:
-
-- aprovar HBAR allowance bond → Settlement Agent;
-- ler saldo e allowance pelo Mirror Node;
-- publicar `RULE_REGISTERED`;
-- publicar `BOND_STATUS`;
-- implementar HCS event envelope;
-- construir payout atómico em dry run;
-- validar links HashScan.
-
-DoD:
-
-- dashboard/API mostra 100 HBAR funded;
-- allowance ≥ 100 HBAR;
-- dois serviços nativos comprovados: Accounts/HBAR + HCS;
-- Mirror Node confirma os dados.
-
-### Sprint 4 — World Claim Agents (`T+11h → T+14h`) — P0
-
-Tarefas:
-
-- registar agent wallets no AgentBook;
-- criar AgentKit client;
-- proteger `joinClaim`;
-- implementar delegação EIP-191;
-- persistir nonces;
-- persistir `humanIdHash` salted;
-- bloquear segundo claim do mesmo humano;
-- criar uma demonstração de rejeição.
-
-DoD:
-
-- agent human-backed + delegação válida entra;
-- bot/não registado falha;
-- wallet não afetada falha;
-- nonce repetido falha;
-- mesmo humano no mesmo incidente falha;
-- nenhum human ID bruto aparece na UI/HCS.
-
-### Sprint 5 — Decisão e settlement (`T+14h → T+17h`) — P0
-
-Tarefas:
-
-- gerar proposal;
-- assinar `ACCEPT` e `REJECT`;
-- validar signer merchant;
-- congelar claims;
-- verificar evidence hash;
-- executar payout aprovado;
-- confirmar receipt;
-- reconciliar pelo Mirror Node;
-- publicar eventos HCS;
-- impedir segundo payout.
-
-DoD happy path:
-
-```text
-PROPOSED → ACCEPTED → SETTLING → SETTLED
-```
-
-DoD rejection path:
-
-```text
-PROPOSED → REJECTED
-no payout
-counter-evidence reference recorded
-```
-
-### Sprint 6 — Dashboard (`T+17h → T+20h`) — P0
-
-Uma página, cinco áreas:
-
-1. hero + tagline;
-2. bond status;
-3. scan/live source;
-4. incident + vítimas + evidence;
-5. settlement + audit timeline.
-
-Elementos obrigatórios:
-
-- botão `Scan for violations`;
-- `LIVE via The Graph`;
-- indexed block;
-- três victim rows;
-- pares de tx hashes;
-- AgentKit status;
-- proposal total;
-- `Accept` e `Reject`;
-- payout receipts;
-- links Graph explorer, source explorer, HashScan e HCS.
-
-DoD:
-
-- demo completo sem abrir terminal;
-- loading e erro claros;
-- sem dados hardcoded apresentados como rede;
-- nenhum segredo no HTML;
-- viewport de apresentação funciona.
-
-### Sprint 7 — E2E e hardening (`T+20h → T+22h`) — P0
-
-Testar:
-
-- happy path;
-- rejection path;
-- replay de claim;
-- replay de payout;
-- evidence hash alterado;
-- bond insuficiente;
-- allowance insuficiente;
-- Graph indisponível;
-- HCS indisponível depois do payout;
-- restart entre proposal e settlement.
-
-DoD:
-
-- happy path repetível a partir de setup limpo;
-- nenhum erro silencioso;
-- payout desconhecido é reconciliado antes de retry;
-- logs suficientes para demo/debug;
-- `npm test` e `npm run build` passam.
-
-### Feature freeze (`T+22h`)
-
-Depois deste ponto:
-
-- zero features novas;
-- apenas bugs, copy, documentação e gravação;
-- criar tag/commit de demo estável;
-- manter uma segunda cópia das credenciais fora do repo.
-
-### Sprint 8 — README, deploy e track proof (`T+22h → T+25h`) — P0
-
-README:
-
-- problema;
-- solução;
-- arquitetura;
-- demo flow;
-- setup;
-- env;
-- comandos;
-- The Graph integration;
-- World AgentKit integration;
-- Hedera payment flow;
-- deployment IDs;
-- contract section: “No custom smart contracts”;
-- limitations;
-- security;
-- links.
-
-Deploy:
-
-- URL pública ou instrução local de uma linha;
-- healthcheck;
-- secrets server-side;
-- cold start testado;
-- links abrem sem login.
-
-### Sprint 9 — Vídeo e submissão (`T+25h → T+28h`) — P0
-
-Tarefas:
-
-- resetar demo;
-- ensaiar duas vezes;
-- gravar uma take de 2:30–3:30;
-- confirmar áudio e legibilidade;
-- publicar vídeo;
-- preencher formulário;
-- escolher as três tracks;
-- adicionar GitHub e live URL;
-- submeter antes das 08:30 WEST;
-- verificar página final da submissão.
-
-Buffer:
-
-- `T+28h → deadline`;
-- só corrigir blocker de submissão;
-- não regravar por perfeccionismo.
+## 15. Plano de sprints
+
+**Uma pessoa.** Relógio real. São **11:00 de sábado**; restam **22h**.
+
+### Estado verificado a 25 jul, 11:29
+
+| Item | Estado |
+|---|---|
+| Detector determinístico | ✅ 8 testes passam, incluindo determinismo e `sameAmountRequired` |
+| Graph live | ✅ `POST /api/scan` → `indexedBlock 44603446`, 3 carteiras reais |
+| Consumer Bond + allowance | ✅ `0.0.9740041`; 101/100 HBAR, repostos após o payout |
+| Tópico HCS | ✅ `0.0.9740519` |
+| **E2E automático** | ✅ `scan → join ×3 → freeze → settle`, estado final `SETTLED` |
+| **Payout atómico aprovado** | ✅ **PROVADO** — tx `0.0.9735745@1784975329.901541450`, 3 créditos de 2 HBAR |
+| **Policy Compiler (0G Compute)** | ✅ **PROVADO** — termos → regra JSON validada, `qwen2.5-omni`, `compiledBy: 0g-compute` |
+| **Regra assinada pelo merchant** | ✅ `/api/rules/sign` verifica contra `SOURCE_MERCHANT_SIGNER` |
+| **Evidence Pack em 0G Storage** | ✅ **PROVADO** — 3462 bytes, root `0xa1f4031f…f78fb` |
+| **Settlement automático** | ✅ state machine sem `ACCEPT`; 4 pré-condições verificadas em `/settle` |
+| Registry / Claim Agents | ✅ **cortado** — zero Solidity no repo |
+| Guardas de segurança | ✅ freeze prematuro, assinatura forjada, carteira fora do incidente e settle prematuro — todos recusados |
+| Dashboard | ✅ fluxo novo, scan pela UI funciona, zero erros de consola |
+| `SOURCE_VICTIM_*_PRIVATE_KEY` | ✅ três carteiras novas, delegações EIP-191 provadas |
+
+⛔ **O pack tem 3462 bytes.** Uma mensagem HCS carrega ~1024. É este número que sustenta o argumento do 0G Storage — usá-lo no vídeo e no README.
+
+✅ **E2E fechado:** três carteiras novas receberam USDC, assinaram seis autorizações EIP-3009 off-chain, foram detetadas pelo The Graph, aderiram ao incidente e receberam 2 HBAR cada.
+
+| Quando | Sprint | Entrega |
+|---|---|---|
+| **11:00–11:45** | **S0 — Desbloquear + simplificar** | chaves das carteiras; cortar registry |
+| **11:45–13:00** | **S1 — Payout automático** | `EVIDENCE_READY → SETTLING` sem clique |
+| 13:00–13:30 | pausa · comer | — |
+| **13:30–15:00** | **S2 — Evidence + 0G Storage** | pack recuperável por rootHash |
+| **15:00–18:00** | **S3 — Policy Compiler** 🔴 | termos → regra assinada |
+| **18:00–20:00** | **S4 — Dashboard** | painel de política + payout automático |
+| **20:00–21:30** | **S5 — Hardening + rejection path** | dois ensaios limpos |
+| **21:30–23:00** | **S6 — Payout final real** | 2 HBAR × 3, links HashScan |
+| **23:00** | ❄️ **FEATURE FREEZE** | tag de demo estável |
+| **23:00–03:00** | 😴 **DORMIR — não negociável** | — |
+| **Dom 03:00–05:00** | **S7 — README + track proof** | docs + links + diagrama |
+| **Dom 05:00–07:00** | **S8 — Vídeo** | ~2:45, ≥720p |
+| **Dom 07:00–07:45** | **S9 — Submissão** | submetido |
+| Dom 07:45–09:00 | folga | margem |
+
+**~12h de trabalho, 4h de sono, ~6h de folga.** A folga é para o Policy Compiler correr mal.
 
 ---
 
-## 15. Backlog priorizado
+### Sprint 0 — Desbloquear e simplificar (11:00 → 11:45)
 
-### P0
+⛔ **O bloqueio é uma chave, não a Hedera.**
 
-- fonte Graph live;
-- detector determinístico;
-- Victim Finder MCP;
-- três vítimas;
-- pelo menos um AgentKit flow real;
-- delegação wallet → agent → payout;
-- merchant decision;
-- bond + allowance;
-- HBAR payout;
-- HCS;
-- Mirror Node/HashScan links;
-- dashboard;
-- README;
-- vídeo;
-- submissão.
+1. Pôr `SOURCE_VICTIM_{A,B,C}_PRIVATE_KEY` no `.env`.
+   - ✅ Carteiras geradas e seis transferências refeitas via EIP-3009; só o merchant/relayer precisou de gas.
+2. **Cortar o registry:** apagar `scripts/registerAgents.ts`, a rota `/api/claim-agents`, o painel `zerog-track` do dashboard, o script `agents:register`.
+3. `src/zerog.ts` → `src/claims.ts`: remover `lookupAgent`, `claimAgentStatuses`, `agentSignature`, `agentIdHash`, `agentUsage`, `REGISTRY_ABI`. Fica só a delegação da carteira afetada.
+4. `scripts/joinClaims.ts`: uma assinatura, não duas.
+5. Limpar `CLAIM_AGENT_*`, `AGENT_ID_SALT` e `CLAIM_AGENT_REGISTRY_ADDRESS` do `.env` e `.env.example`.
+6. Renomear no detector: `duplicatePayments` → `excessCharges`, `rule_duplicate_daily_v1` → `rule_max_daily_charge_v1`, `REFUND_PER_DUPLICATE_TINYBAR` → `REFUND_PER_EXCESS_TINYBAR`.
 
-### P1
+**DoD:** `npm run check` passa; `npm run claims:join` regista três claims; zero referências a agent/registry.
 
-- três humanos World reais;
-- bot rejection visível;
-- rejection path visível;
-- agent tool-calling explanation;
-- chain-of-hashes HCS;
-- live deploy;
-- badge `Protected by BITEBACK`;
-- MCP sample client.
+### Sprint 1 — Payout automático (11:45 → 13:00)
 
-### P2
+1. `POST /freeze`: congela claims, gera pack, ancora, passa a `EVIDENCE_READY`.
+2. `POST /settle`: verifica regra assinada + allowance + bond + evidenceHash, e paga. **Sem `ACCEPT`.**
+3. `/decision` passa a aceitar apenas `REJECT`, e só no modo não integrado.
+4. Erros `RULE_NOT_SIGNED` e `INVALID_RULE_SIGNATURE`.
 
-- auto-refresh;
-- countdown de decisão;
-- QR World registration;
-- export Evidence Pack;
-- copy-to-clipboard;
-- animações;
-- múltiplos incidents.
+**DoD:** `scan → join ×3 → freeze → settle` corre sem intervenção; segundo `settle` devolve o mesmo `payoutTxId`; timeline HCS completa.
 
-### Proibido antes da submissão
+### Sprint 2 — Evidence Pack + 0G Storage (13:30 → 15:00)
 
-- segundo tipo de violação;
-- nova chain;
-- token próprio;
-- arbitragem;
-- smart contract;
-- refactor arquitetural;
-- design system;
-- base de dados remota.
+Canonicalização + sha256 → upload → download → **assert hash igual** → HCS `EVIDENCE_ANCHORED`.
+
+**DoD:** teste automático que sobe, desce e compara.
+
+🔴 **Checkpoint 15:00:** se não subiu, fallback e seguir. Não voltar antes das 23:00.
+
+### Sprint 3 — Policy Compiler (15:00 → 18:00) 🔴
+
+1. SDK oficial `@0gfoundation/0g-compute-ts-sdk` — **45 minutos, não mais**.
+2. Se travar, router (verificado a funcionar).
+3. Validação Zod dura do output.
+4. `POST /api/rules/compile` + `POST /api/rules/sign` + `RULE_REGISTERED` com hash da regra assinada.
+
+**DoD:** termos em texto → regra JSON → merchant assina → detector encontra as mesmas 3 carteiras.
+
+🔴 **Checkpoint 18:00:** cair para regra pré-assinada, dizê-lo no vídeo, seguir.
+
+### Sprint 4 — Dashboard (18:00 → 20:00)
+
+Painel de política (termos → regra → assinatura); `Scan for violations`; badge `LIVE via The Graph` + indexed block; três linhas de carteira com pares de tx; root hash de 0G Storage; **payout automático a acontecer sem botão**; timeline HCS. Links para Base Sepolia, 0G e HashScan.
+
+**DoD:** demo conduzível pelo browser; nenhum segredo no HTML.
+
+### Sprint 5 — Hardening + rejection (20:00 → 21:30)
+
+Rejection path; replay de claim e de payout; evidence hash alterado; bond e allowance insuficientes; Graph, 0G Storage e 0G Compute indisponíveis; HCS indisponível **depois** do payout; restart entre freeze e settle.
+
+**DoD:** dois ensaios seguidos sem intervenção; `npm run check` passa.
+
+### Sprint 6 — Payout final real (21:30 → 23:00)
+
+Correr o fluxo com montantes de demo (2 HBAR × 3) e guardar todos os links HashScan para o vídeo e o README.
 
 ---
 
 ## 16. Test plan
 
-### Unit tests do detector
+**Unit — detector:** zero/um pagamento → zero violações · duas cobranças iguais no bucket → uma excedente · três → duas · montantes diferentes não colidem · merchants/tokens/buckets diferentes não colidem · fronteira da meia-noite UTC · mesma tx duas vezes → uma ocorrência · **ordem do Graph não muda o hash** ✅.
 
-| Caso | Resultado |
-|---|---|
-| zero pagamentos | zero violações |
-| um pagamento | zero violações |
-| dois iguais no mesmo bucket | um duplicado |
-| três iguais | dois duplicados |
-| dois montantes diferentes | sem duplicado no MVP |
-| merchants diferentes | grupos separados |
-| tokens diferentes | grupos separados |
-| buckets UTC diferentes | grupos separados |
-| mesma tx processada duas vezes | uma ocorrência |
-| ordem de Graph diferente | mesmo Evidence Pack/hash |
+**Integração:** Graph devolve transações live com `indexedBlock` · schemas MCP validam · 0G Storage preserva bytes · 0G Compute devolve JSON válido contra o schema · allowance lida · approved transfer funciona · HCS devolve sequence number · Mirror Node encontra o payout.
 
-### Integration tests
-
-- Graph query retorna transações live;
-- indexed block é guardado;
-- MCP schemas validam;
-- AgentBook lookup confirma agent;
-- invalid agent é bloqueado;
-- HBAR allowance é lida;
-- approved transfer funciona;
-- HCS publish retorna sequence number;
-- Mirror Node encontra payout.
-
-### E2E happy path
+**E2E integrado:**
 
 ```text
-setup demo
-→ scan
-→ 3 violations
-→ 3 valid claims
-→ proposal 6 HBAR
-→ merchant accepts
-→ atomic payout
-→ 3 recipients credited
-→ HCS timeline complete
+compile → sign → scan → 3 violações → 3 claims
+→ freeze → 0G Storage → HCS anchor
+→ settle AUTOMÁTICO → 3 créditos → timeline HCS completa
 ```
 
-### E2E rejection path
+**E2E não integrado:** `freeze → REJECT assinado → zero HBAR movido → evento em HCS`.
 
-```text
-proposal
-→ merchant rejects
-→ no payout transaction
-→ rejection event in HCS
-```
-
-### Teste de idempotência
-
-- repetir `scan`: mesmo incident ID;
-- repetir `join`: `CLAIM_ALREADY_JOINED`;
-- repetir `decision`: mesma decisão sem novo evento financeiro;
-- repetir `settle`: devolver payout existente;
-- timeout desconhecido: procurar transaction ID antes de criar outra.
+**Idempotência:** repetir `scan` → mesmo incidente · repetir `join` → `CLAIM_ALREADY_JOINED` · repetir `settle` → mesmo `payoutTxId` · timeout desconhecido → procurar transaction ID antes de criar outra.
 
 ---
 
 ## 17. Segurança e integridade
 
-### Chaves
+**Chaves:** nunca no frontend, nunca em logs, nunca no vídeo · contas testnet separadas por papel · `.env` no `.gitignore` (`.env.*` incluído) · secret scanner antes do push.
 
-- nunca enviar private keys ao frontend;
-- usar contas testnet separadas por papel;
-- não reutilizar contas pessoais;
-- limitar saldo do Settlement Agent;
-- bond allowance limitada;
-- revogar allowance depois do hackathon;
-- rodar `git grep`/secret scanner antes do push.
+**Claims:** assinatura da carteira afetada obrigatória · domínio e versão na mensagem · incidente e conta de payout dentro da assinatura · nonce único · expiry curta · nunca confiar no endereço enviado no JSON.
 
-### Claims
+**Settlement:** tinybar inteiro, sem floats · payout recalculado · evidence hash imutável depois de `EVIDENCE_READY` · **assinatura da regra verificada contra signer allowlisted** · allowance, balance e estado verificados imediatamente antes · uma transação atómica · idempotency key por incidente · receipt `SUCCESS` antes de `SETTLED`.
 
-- assinatura da victim wallet obrigatória;
-- domínio e versão na mensagem;
-- incident ID e payout account dentro da assinatura;
-- nonce único;
-- expiry curta;
-- AgentKit human-backed obrigatório;
-- uniqueness por `hash(appSalt | humanId | incidentId)`;
-- não confiar no endereço enviado pelo JSON.
+**0G:** o Evidence Pack em 0G Storage é público — não meter lá nada que não possa ser público.
 
-### Settlement
-
-- montantes inteiros em tinybar;
-- sem floats;
-- payout recalculado;
-- evidence hash imutável depois de `PROPOSED`;
-- merchant signer allowlisted na regra;
-- allowance, balance e estado verificados imediatamente antes;
-- uma transação atómica;
-- idempotency key por incident;
-- receipt `SUCCESS` antes de `SETTLED`.
-
-### HCS
-
-- HCS não é a base de dados operacional;
-- publicar hashes, não dados sensíveis;
-- se HCS falhar depois do payout, marcar `AUDIT_PENDING`, não repetir o payout;
-- reconciliar pelo transaction ID.
-
-### LLM/agent
-
-- tool inputs validados;
-- system prompt não substitui invariantes;
-- modelo nunca recebe private keys;
-- modelo não assina;
-- modelo não define eligibility;
-- toda ação financeira passa por código determinístico.
+**LLM:** tool inputs validados · o modelo nunca recebe private keys · não assina · não define eligibility · output validado por schema antes de chegar ao merchant · **toda ação financeira passa por código determinístico**.
 
 ---
 
-## 18. Riscos e fallbacks
+## 18. Riscos
 
-| Risco | Impacto | Mitigação | Fallback honesto |
-|---|---|---|---|
-| Subgraph demora a indexar | demo sem vítimas | publicar/gerar txs cedo | usar txs live já indexadas durante o evento |
-| Graph endpoint falha | scan bloqueado | retry curto + healthcheck | mostrar vídeo gravado do fluxo live |
-| Não há três humanos World | três claims impossíveis | recrutar no Sprint 0 | um claim real; não falsificar três humanos |
-| AgentKit beta muda | join bloqueado | seguir sample oficial | mostrar lookup real mínimo e documentar blocker |
-| HBAR allowance falha | sem bond payout | testar no Sprint 0/3 | funding account controlada pelo Settlement Agent, claramente rotulada |
-| Bond é drenado/revogado | insolvência | check live antes do badge e payout | estado `BOND_INSUFFICIENT`, sem pagamento |
-| Merchant rejeita | sem payout | demo também cobre `ACCEPT` | rejeição auditada, sem arbitragem |
-| HCS falha após payout | timeline incompleta | guardar tx ID antes de publish | `AUDIT_PENDING`, retry apenas HCS |
-| Segundo payout por retry | perda de fundos | idempotência + reconciliation | intervenção manual, nunca retry cego |
-| Conversão token/HBAR contestada | montante ambíguo | compensação HBAR fixa na regra | explicar que não existe FX no MVP |
-| Cross-chain wallet mapping falso | payout errado | delegação assina Hedera account | claim rejeitado |
-| UI consome demasiado tempo | submissão em risco | HTML único | demo por API/terminal como último recurso |
+| # | Risco | Prob. | Impacto | Mitigação |
+|---|---|---|---|---|
+| 1 | **Chaves das carteiras de origem em falta** | — | **bloqueia E2E** | S0; se perdidas, refazer a janela (~40min) |
+| 2 | 0G Compute não produz JSON válido | **Alta** | perde $6.000 | Zod duro + retry + regra pré-assinada |
+| 3 | SDK oficial exige ledger financiado | Média | atraso | router verificado, 45min de limite |
+| 4 | 0G Storage falha | Média | perde argumento de provas | fallback `GET /evidence/:id` |
+| 5 | Substreams não responde | Média | perde dados live | Token API Pinax, 90min de limite |
+| 6 | Payout automático paga a mais por bug | Baixa | **grave** | invariantes §8 verificadas antes de cada transferência; allowance limita a exposição |
+| 7 | Vídeo rejeitado | Média | **perde tudo** | ~2:45, ≥720p, voz humana |
+| 8 | Colapso por falta de sono | **Alta** | perde S7–S9 | bloco 23:00–03:00 inegociável |
+| 9 | Chave commitada | Baixa | desqualificação | secret scanner antes do push |
 
-### Ordem de proteção
-
-Se o tempo acabar:
-
-1. preservar Graph live;
-2. preservar AgentKit real;
-3. preservar Hedera payout real;
-4. cortar animações;
-5. cortar deploy e correr local;
-6. cortar rejection UI, mantendo API;
-7. nunca cortar evidência, idempotência ou vídeo.
+**Ordem de proteção:** preservar Graph live → preservar payout Hedera → preservar Evidence Pack verificável → cortar polish → cortar deploy → **nunca cortar evidência, idempotência ou vídeo**.
 
 ---
 
-## 19. Dashboard
+## 19. Demo de 2 minutos
 
-### Hierarquia visual
-
-```text
-[BITEBACK logo]  When protocols bite, wallets bite back.
-
-[Protected merchant] [100 HBAR bond] [Allowance active] [HCS topic]
-
-[Scan for violations]
-LIVE via The Graph · indexed at block ####
-
-Incident #...
-Rule: max 1 charge / user / UTC day
-3 affected wallets · 6 HBAR proposed
-
-Wallet          Charges       Duplicate       Claim Agent       Refund
-0xA...          tx ↗ tx ↗     detected        human-backed      2 HBAR
-0xB...          tx ↗ tx ↗     detected        human-backed      2 HBAR
-0xC...          tx ↗ tx ↗     detected        human-backed      2 HBAR
-
-[Accept settlement] [Reject]
-
-SETTLED
-Victim A tx ↗ · Victim B tx ↗ · Victim C tx ↗
-HCS audit ↗ · HashScan ↗
-```
-
-### Estados de UI
-
-```text
-READY
-SCANNING
-INCIDENT_FOUND
-COLLECTING_CLAIMS
-PROPOSED
-ACCEPTED
-SETTLING
-SETTLED
-REJECTED
-ERROR
-```
-
-### Copy
-
-- `Scan live payments`
-- `3 wallets suffered the same rule violation`
-- `Claims are authorized by unique human-backed agents`
-- `Merchant accepted 100% compensation`
-- `6 HBAR distributed atomically`
-- `Every step is publicly auditable`
-
----
-
-## 20. Demo de 2 minutos
-
-### Setup antes de gravar
-
-- app limpa em `READY`;
-- merchant bond com 100 HBAR;
-- allowance ativa;
-- seis source transactions já indexadas;
-- três Claim Agents preparados;
-- incident database limpa, sem apagar dados on-chain;
-- explorers abertos em tabs;
-- terminal e notificações escondidos;
-- zoom legível;
-- gravação a 1080p.
-
-### Guião
-
-**0:00–0:15 — problema**
-
-> A protocol charged several users twice. Each loss is small, so victims normally have to discover and fight it alone. BITEBACK turns the same on-chain harm into one collective settlement.
-
-Mostrar merchant:
-
-```text
-Protected by BITEBACK
-Consumer Bond: 100 HBAR
-Rule: maximum one charge per user per day
-```
-
-**0:15–0:40 — The Graph**
-
-Clicar `Scan live payments`.
-
-> The Victim Finder MCP queries live data through The Graph. It detects the same deterministic violation for three wallets and returns the exact transactions, timestamps, amounts and violated rule.
-
-Mostrar:
-
-- `LIVE`;
-- indexed block;
-- três victims;
-- seis tx links;
-- Evidence Pack hash.
-
-**0:40–1:05 — World**
-
-> Each affected wallet delegates a Claim Agent. World AgentKit proves the agent is backed by a unique human, while the wallet signature proves it is authorized by an actual victim.
-
-Mostrar:
-
-- delegation valid;
-- human-backed badge;
-- três claims;
-- tentativa duplicada bloqueada, se estável.
-
-**1:05–1:25 — collective proposal**
-
-> The deterministic agent recalculates every loss. Three victims, two HBAR each, six HBAR total. No model can change these numbers.
-
-Mostrar proposal e Evidence Pack.
-
-**1:25–1:45 — Hedera**
-
-Clicar `Accept settlement`.
-
-> The merchant accepts the evidence hash. The Settlement Agent uses the pre-authorized Consumer Bond and pays all victims atomically on Hedera Testnet.
-
-Mostrar `SETTLING → SETTLED`.
-
-**1:45–2:00 — audit e close**
-
-Abrir HashScan/HCS.
-
-> The rule, evidence hash, decision and payout are anchored in HCS and auditable through Mirror Node and HashScan. When protocols bite, wallets bite back.
-
-### Demo alternativo: rejection
-
-Só mostrar se houver tempo:
-
-```text
-REJECT
-→ counter-evidence hash
-→ HCS event
-→ zero payout
-```
-
----
-
-## 21. Pitch
-
-### 15 segundos
-
-> BITEBACK automatically detects when multiple wallets suffer the same on-chain violation, organizes unique human-backed claimants, and pays collective refunds from protocol-funded bonds.
-
-### 30 segundos
-
-> Small on-chain losses rarely get fixed because every user has to investigate and complain alone. BITEBACK uses The Graph to find shared deterministic harm, World AgentKit to ensure each delegated Claim Agent represents a unique human, and Hedera to distribute accepted compensation from a pre-authorized Consumer Bond. It is not a court. It is an autonomous detection, claims and settlement layer for crypto users.
-
-### Pitch principal
-
-> BITEBACK is an autonomous consumer-protection layer for crypto. It uses The Graph to detect shared on-chain harm, World to organize unique human-backed claimants, and Hedera to distribute compensation from protocol-funded consumer bonds.
-
-### Três beats para judges
-
-1. **Discovery, not a complaint form:** victims are found automatically from live data.
-2. **Human-backed delegation, not wallet counting:** World prevents one person from multiplying claims.
-3. **Settlement, not a dashboard:** accepted compensation moves on Hedera and leaves an HCS audit trail.
-
----
-
-## 22. Texto de submissão
-
-### Short description
-
-> BITEBACK detects shared on-chain rule violations, organizes unique human-backed claim agents, and automatically distributes collective refunds from merchant-funded HBAR bonds.
-
-### Problem
-
-> On-chain users often suffer the same small loss—duplicate charges, excessive fees or incorrect rewards—but each wallet must detect, prove and dispute it alone. Most losses are too small to justify the effort, so protocols face weak incentives to resolve them quickly.
-
-### Solution
-
-> BITEBACK turns deterministic shared harm into one auditable settlement flow. A reusable Victim Finder MCP queries live blockchain data through The Graph, groups affected wallets and builds machine-readable evidence. Each victim delegates a Claim Agent whose human backing is verified by World AgentKit. A merchant can accept or reject the collective request. If accepted, a Settlement Agent automatically distributes HBAR from a pre-authorized Hedera Consumer Bond and anchors the lifecycle in HCS.
-
-### How The Graph is used
-
-> The Graph is a load-bearing live data source. Our subgraph indexes payment transfers and the Victim Finder MCP exposes reusable tools to scan violations, find victims, calculate losses and build evidence packs. The application cannot discover an incident without live Graph data.
-
-### How World is used
-
-> The claim endpoint is protected by AgentKit. A source-wallet signature proves that a detected victim delegated authority to the calling agent; AgentBook verification proves that the agent is backed by a unique human. BITEBACK therefore grants economic claim rights to human-backed agents rather than counting arbitrary wallets.
-
-### How Hedera is used
-
-> The merchant funds a dedicated HBAR account and grants a limited allowance to the Settlement Agent. After a signed acceptance, the agent executes one atomic multi-recipient HBAR transfer on Hedera Testnet. HCS records rules, evidence hashes, decisions and payout references, while Mirror Node and HashScan provide public verification. No custom Solidity contracts are used.
-
-### What is novel
-
-> Existing claim aggregation starts after people report a problem. BITEBACK begins with live on-chain detection, identifies victims automatically, makes claims machine-readable, prevents duplicated human participation and completes compensation on-chain.
-
-### Limitations
-
-> The MVP supports one opt-in merchant, one duplicate-payment rule, testnet data and HBAR compensation. Rejected claims are only recorded; there is no arbitration. The HBAR allowance is a revocable settlement mandate, not immutable escrow.
-
----
-
-## 23. Judge scorecards
-
-### World
-
-| Critério esperado | Resposta BITEBACK |
+| Tempo | Conteúdo |
 |---|---|
-| AgentKit meaningful | controla adesão e direito económico |
-| Human-backed | AgentBook obrigatório |
-| Novo caso de uso | collective consumer redress |
-| End-to-end | verified agent recebe settlement |
-| Abuse prevention | human uniqueness + victim signature |
+| 0:00–0:15 | **Problema.** "Foste cobrado acima da política. São 2 HBAR. Não vais processar ninguém." |
+| 0:15–0:28 | O que é o BITEBACK. Diagrama 5s. |
+| 0:28–0:52 | **Política.** Colar os termos → 0G Compute devolve a regra JSON → merchant assina. *"O modelo escreve a regra. Nunca o resultado."* |
+| 0:52–1:15 | **Scan.** The Graph encontra 3 carteiras em dados live. Tx hashes e indexed block. |
+| 1:15–1:30 | **Claims.** Cada carteira afetada assina a delegação. *"Ninguém se inscreve como vítima — a chain é que diz."* |
+| 1:30–1:45 | **Evidence.** Pack sobe para 0G Storage; root hash ancorado em HCS. |
+| 1:45–2:05 | **Payout automático.** ← o clímax. Sem clique. *"O merchant já tinha consentido: assinou a regra e depositou a garantia."* |
+| 2:05–2:28 | **HashScan.** Transação, tópico, mensagens. |
+| 2:28–2:45 | Stack: Graph live · 0G Compute/Storage · Hedera sem contratos. |
 
-### The Graph
+**Demo alternativo (não integrado):** sem regra assinada nem bond, o BITEBACK deteta, prova e propõe — e para. *"Não lhe podemos tirar o dinheiro. Mas a recusa fica no registo público, e as provas ficam com as vítimas."*
 
-| Critério oficial | Peso | Resposta BITEBACK |
-|---|---:|---|
-| Usefulness to builders | 30% | MCP reutilizável |
-| Reusability/completeness | 25% | quatro tools + schemas + README |
-| Effective Graph use | 20% | fonte live load-bearing |
-| Technical execution | 15% | evidence canónico/idempotência |
-| Innovation | 10% | victim discovery infrastructure |
+**Antes de gravar:** reset do demo; bond financiado; janela Substreams revalidada; nenhuma chave em ecrã.
 
-### Hedera
+---
 
-| Critério esperado | Resposta BITEBACK |
+## 20. Pitch
+
+**15 segundos**
+> Quando um serviço cobra acima da política que publicou, ninguém reclama 2 HBAR. O BITEBACK encontra todas as carteiras afetadas nos dados live, prova a violação contra a regra que o serviço assinou, e paga a partir da garantia que ele próprio depositou.
+
+**Principal**
+> BITEBACK is an autonomous consumer-protection layer for crypto. 0G Compute turns a merchant's published terms into a signed machine-readable rule, The Graph detects live on-chain violations of it, and Hedera pays every affected wallet automatically from a pre-authorized Consumer Bond — no smart contracts, and no human in the loop at settlement.
+
+**Três beats para juízes**
+
+1. **Elegibilidade derivada, não declarada** — não se pode fazer Sybil de um facto on-chain.
+2. **O modelo escreve a regra, nunca o resultado** — inferência real, e mesmo assim o dinheiro é determinístico.
+3. **O consentimento aconteceu no início** — regra assinada + bond depositado, por isso o pagamento é execução, não negociação.
+
+---
+
+## 21. Texto de submissão
+
+**Short description**
+> Autonomous collective redress for on-chain users: compiles a merchant's published policy into a signed rule, detects live violations across many wallets, and settles compensation automatically from a pre-authorized Hedera bond.
+
+**How The Graph is used**
+> Substreams provide the live source of ERC-20 transfer events on Base Sepolia. The Victim Finder MCP wraps this into four reusable tools (`scanViolations`, `findVictims`, `calculateLoss`, `buildEvidencePack`) that any agent or protocol can call. No mocked data anywhere in the detection path.
+
+**How 0G is used**
+> 0G Compute performs the inference that makes the product general: it compiles the merchant's published terms, in natural language, into a machine-readable rule which the merchant then signs. The model writes the *rule* — it never sees payments, counts charges, computes amounts or picks recipients. Once the rule is signed the model is out of the loop and detection is fully deterministic and reproducible. Evidence Packs exceed the ~1KB practical limit of an HCS message, so the canonical pack is stored in 0G Storage and only its root hash is anchored on Hedera; anyone can download by root hash, recompute the SHA-256, and verify the anchor.
+
+**How Hedera is used**
+> A Consumer Bond funded in HBAR with an approved allowance to the settlement account. Because the merchant signed the rule and pre-authorized the allowance, settlement needs no further approval: the Settlement Agent verifies the signed rule, the evidence hash, the allowance and the balance, then executes a single atomic `TransferTransaction` with an approved debit and N credits — autonomously. HCS records rule, evidence anchor and payout; Mirror Node serves public verification. Only native services; this repository contains no Solidity.
+
+**What is novel**
+> Eligibility is derived from on-chain evidence, never self-declared. Consent happens once, up front — a signed policy and a funded bond — so compensation is execution rather than negotiation.
+
+**Limitations**
+> **Automatic compensation requires the provider to opt in.** An integrated provider signs a rule and posts a bond, so settlement is automatic. For a non-integrated provider, BITEBACK still detects, groups affected wallets, builds evidence and proposes a settlement — but cannot withdraw funds or compel payment.
+>
+> Also: one rule type (max charges per UTC day); this measures **policy violation, not duplicate intent** — without a `requestId`, two equal same-day charges could be two legitimate purchases; fixed HBAR compensation with no oracle conversion; controlled demo window with team-owned wallets; no bridge between source asset and HBAR; an allowance is revocable authorization, not escrow; rejection is terminal, with no arbitration or appeal; BITEBACK does not prove personhood.
+
+---
+
+## 22. Checklist de submissão
+
+**Produto** — política compilada e assinada · scan live com `indexedBlock` · 3 carteiras, 3 claims, 3 payouts · payout **sem clique** · pack recuperável de 0G Storage · rejection path · reset de demo.
+
+**The Graph** — 4 tools MCP chamáveis externamente · sample call/response no README · zero fixtures.
+
+**0G** — prova de inferência em 0G Compute · root hash + verificação de sha256 · `ARCHITECTURE.png`.
+
+**Hedera** — 🔴 frase "no Solidity at all" · links HashScan (bond, tópico, payout) · allowance no Mirror Node · payout autónomo demonstrado.
+
+**Repositório** — público · `.env` **não** commitado (verificar duas vezes) · LICENSE.
+
+**Submissão** — vídeo ~2:45, ≥720p · 🔴 **3 Partner Prizes: The Graph · Hedera · 0G** · submeter **domingo 07:45**.
+
+---
+
+## 23. Decisões finais
+
+| Questão | Decisão |
 |---|---|
-| Agentic value movement | payout automático pós-decisão |
-| Native Hedera use | allowance + HBAR transfer + HCS |
-| Real flow | três destinatários testnet |
-| Auditability | Mirror Node + HashScan + HCS |
-| Security | caps, signatures, idempotência |
+| Parceiros | The Graph · Hedera · 0G |
+| Tracks | Graph AI Tooling · Hedera Agentic Payments · Hedera No Solidity · 0G Best AI Product |
+| Settlement | **automático**: regra assinada + bond autorizado = payout sem clique |
+| `ACCEPT` | **não existe** no modo integrado |
+| `REJECT` | só modo não integrado |
+| Identidade | uma assinatura EIP-191 da carteira afetada |
+| Registry / Agentic ID | **cortado** — redundante e opcional na track |
+| Solidity | **nenhum, em lado nenhum** |
+| Violação | política de cobrança máxima diária, **não** "pagamento duplicado" |
+| Inferência | 0G Compute compila a política; nunca decide dinheiro |
+| Transporte 0G | SDK oficial, 45min; senão router (verificado) |
+| Fonte | Base Sepolia via Substreams; fallback Token API |
+| Prova | 0G Storage (conteúdo) + HCS (root hash) |
+| Persistência | JSON local |
+| Freeze | sábado 23:00 · Sono 23:00–03:00 · Submissão domingo 07:45 |
 
 ---
 
-## 24. Runbook
+## 24. Plano pós-hackathon
 
-### Setup
+**Fase 1 — Provas privadas:** faturas, recibos e respostas de API encriptadas em 0G Storage, avaliadas em 0G Private Compute com attestation. É o que permite regras que dependem de dados fora da chain.
 
-```bash
-npm install
-npm run build
-npm run setup:demo
-npm test
-npm start
-```
+**Fase 2 — Middleware x402:** `Agente → BITEBACK-protected payment → Fornecedor`, com `requestId` no pagamento. É o que torna possível medir duplicação real, entrega em falta e taxas acima do publicado.
 
-O `setup:demo` deve:
+**Fase 3 — Bond forte:** custódia real em vez de allowance, multi-asset, top-up automático, limites por incidente.
 
-1. validar env;
-2. validar source wallets e saldos;
-3. criar apenas as transferências em falta;
-4. aguardar/confirmar indexação;
-5. validar Hedera accounts;
-6. criar HCS topic apenas se não existir;
-7. fundar bond apenas até ao target;
-8. aprovar allowance apenas até ao target;
-9. imprimir IDs e explorer links;
-10. poder correr duas vezes sem duplicar setup.
+**Fase 4 — Contestação:** janela de contra-prova estruturada, ainda determinística, sem arbitragem subjetiva.
 
-### Healthcheck
-
-```json
-{
-  "server": "ok",
-  "graph": {
-    "ok": true,
-    "indexedBlock": 9999999
-  },
-  "world": {
-    "ok": true,
-    "registeredAgents": 3
-  },
-  "hedera": {
-    "ok": true,
-    "bondTinybar": "10000000000",
-    "allowanceTinybar": "10000000000",
-    "topicId": "0.0.x"
-  }
-}
-```
-
-### Reset de demo
-
-Resetar apenas estado local:
-
-```text
-incidents
-claims
-decisions
-payout display state
-used demo nonces
-```
-
-Não apagar:
-
-- source transactions;
-- HCS topic;
-- AgentBook registrations;
-- Hedera transaction history.
-
-Para repetir payout, criar novo incident bucket ou usar novas contas/funding. Nunca esconder um payout anterior como se não tivesse ocorrido.
+**Modelo de negócio:** protocolos pagam pelo selo *Protected by BITEBACK*; a plataforma cobra uma percentagem **apenas sobre settlements executados**.
 
 ---
 
-## 25. Checklist de submissão
+## 25. Referências
 
-### Produto
+**ETHGlobal** — [Prizes](https://ethglobal.com/events/lisbon2026/prizes) · [Rules](https://ethglobal.com/events/lisbon/info/details)
 
-- [ ] Uma regra registada
-- [ ] 100 HBAR no Consumer Bond
-- [ ] Allowance ativa
-- [ ] HCS topic live
-- [ ] Seis pagamentos source live
-- [ ] Subgraph live
-- [ ] Três violações detetadas
-- [ ] Evidence Pack com hash
-- [ ] Claim Agent human-backed
-- [ ] Delegação de victim wallet válida
-- [ ] Proposal com 6 HBAR
-- [ ] `ACCEPT` executa payout
-- [ ] `REJECT` não executa payout
-- [ ] Mirror Node confirma
-- [ ] HashScan links funcionam
-- [ ] Replay bloqueado
+**The Graph** — [Substreams](https://docs.substreams.dev/) · [Pinax](https://app.pinax.network/)
 
-### The Graph
+**0G** — [Compute quickstart](https://build.0g.ai/compute) · `@0gfoundation/0g-compute-ts-sdk@0.9.0` · `@0gfoundation/0g-storage-ts-sdk@1.2.10`
 
-- [ ] MCP é utilizável fora da app
-- [ ] Quatro tools documentadas
-- [ ] Dados live, não mocks
-- [ ] Subgraph/deployment/endpoint identificados
-- [ ] Indexed block visível
-- [ ] README com sample calls
-- [ ] Vídeo 2–4 min
-
-### World
-
-- [ ] AgentKit package oficial
-- [ ] Agent registado no AgentBook
-- [ ] Human-backed verification real
-- [ ] Endpoint protegido
-- [ ] Fluxo end-to-end
-- [ ] Uniqueness muda eligibility
-- [ ] Bot/duplicate rejeitado
-
-### Hedera
-
-- [ ] Hedera Testnet
-- [ ] `@hashgraph/sdk`
-- [ ] HBAR allowance
-- [ ] Payout real
-- [ ] HCS audit
-- [ ] Mirror Node
-- [ ] README payment flow
-- [ ] Vídeo ≤ 5 min
-- [ ] Sem Solidity próprio
-
-### Repositório
-
-- [ ] Público
-- [ ] Nome BITEBACK
-- [ ] Licença
-- [ ] README reproduzível
-- [ ] `.env.example`
-- [ ] Sem secrets
-- [ ] Sem código morto
-- [ ] Sem TODOs legacy
-- [ ] Build limpo
-- [ ] Tests passam
-- [ ] Git history real durante o evento
-
-### Submissão
-
-- [ ] Título
-- [ ] Tagline
-- [ ] Short description
-- [ ] Long description
-- [ ] GitHub URL
-- [ ] Live URL
-- [ ] Video URL
-- [ ] Team members
-- [ ] Deployment IDs
-- [ ] Source tx hashes
-- [ ] Subgraph ID
-- [ ] HCS topic ID
-- [ ] Hedera transaction IDs
-- [ ] Escolher World AgentKit New Use Cases
-- [ ] Escolher The Graph Best AI Tooling
-- [ ] Escolher Hedera AI & Agentic Payments
-- [ ] Submeter antes das 08:30 WEST
-- [ ] Abrir a página final e validar todos os links
-
----
-
-## 26. Plano pós-hackathon
-
-### Fase 1 — Generalizar deteção
-
-- fees acima do publicado;
-- amount-out abaixo da garantia;
-- reward distributions incorretas;
-- payment sem delivery event;
-- schemas de regras versionados.
-
-### Fase 2 — Bond forte
-
-- escrow não revogável;
-- reservas por incident;
-- cobertura mínima dinâmica;
-- monitor de solvência;
-- pausa automática do selo.
-
-### Fase 3 — Integrações
-
-- wallet SDK;
-- merchant SDK;
-- vários subgraphs/protocolos;
-- schema standard para violations;
-- webhook de incidentes;
-- Evidence Pack verificável por terceiros.
-
-### Fase 4 — Disputas
-
-- counter-evidence machine-readable;
-- árbitros opt-in;
-- policies por merchant;
-- deadlines e auto-execution;
-- sem confundir protocolo técnico com processo legal.
-
-### Modelo de negócio
-
-```text
-Protected by BITEBACK
-Violations are automatically detected and eligible settlements are refunded.
-```
-
-Receita:
-
-- fee sobre settlement executado;
-- plano SaaS para monitorização e selo;
-- integração white-label em wallets;
-- sem token próprio.
-
-Métrica norte:
-
-```text
-time from shared harm to completed compensation
-```
-
-Métricas secundárias:
-
-- wallets protegidas;
-- violações detetadas;
-- claims válidos;
-- Sybil claims bloqueados;
-- valor settled;
-- taxa de aceitação;
-- bond coverage ratio.
-
----
-
-## 27. Decisões finais
-
-| Tema | Decisão |
-|---|---|
-| Produto | collective detection + claims + settlement |
-| Violação | duplicate ERC-20 payment |
-| Fonte | The Graph live subgraph |
-| Fonte chain | Ethereum Sepolia, salvo blocker comprovado |
-| Identidade | victim signature + World AgentKit |
-| Settlement | HBAR allowance + atomic transfer |
-| Auditoria | um HCS topic + Mirror Node |
-| Contratos próprios | nenhum |
-| Arbitragem | nenhuma |
-| Persistência | local simples |
-| UI | uma página |
-| Tracks | World AgentKit, Graph AI Tooling, Hedera Agentic Payments |
-| Feature freeze | T+22h |
-| Submissão interna | 08:30 WEST |
-
----
-
-## 28. Referências oficiais
-
-### ETHGlobal
-
-- [ETHGlobal Lisbon 2026 — Prizes](https://ethglobal.com/events/lisbon2026/prizes)
-
-### World
-
-- [AgentKit integration](https://docs.world.org/agents/agent-kit/integrate)
-- [World developer docs](https://docs.world.org/)
-
-### The Graph
-
-- [AI Tooling overview](https://thegraph.com/docs/en/ai-overview/)
-- [Subgraph MCP](https://thegraph.com/docs/en/subgraphs/tooling/subgraph-mcp/introduction/)
-- [Supported networks](https://thegraph.com/docs/en/supported-networks/)
-- [Subgraph Studio](https://thegraph.com/studio/)
-- [Graph Explorer](https://thegraph.com/explorer)
-
-### Hedera
-
-- [Hedera JavaScript SDK](https://github.com/hashgraph/hedera-sdk-js)
-- [Approve an allowance](https://docs.hedera.com/native/accounts/approve-allowance)
-- [Transfer HBAR](https://docs.hedera.com/native/accounts/transfer)
-- [Hedera Consensus Service](https://docs.hedera.com/native/consensus/create-topic)
-- [Mirror Node REST API](https://docs.hedera.com/reference/rest-api)
-- [HashScan Testnet](https://hashscan.io/testnet)
+**Hedera** — [SDK JS](https://github.com/hashgraph/hedera-sdk-js) · [HashScan testnet](https://hashscan.io/testnet) · [Mirror Node REST](https://testnet.mirrornode.hedera.com/api/v1/docs/)
