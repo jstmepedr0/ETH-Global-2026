@@ -129,7 +129,15 @@
         border-bottom: 1px solid var(--line);
       }
       .brand { display: flex; align-items: center; gap: 11px; }
+      .brand-copy { display: grid; gap: 1px; }
       .brand .word { font-size: 21px; font-weight: 800; letter-spacing: -0.025em; }
+      .brand small {
+        font-family: var(--mono);
+        font-size: 8.5px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
       .brand svg { color: var(--acid); }
       .brand .eye { transform-box: fill-box; transform-origin: center; animation: blink 7s infinite; }
       @keyframes blink {
@@ -182,6 +190,94 @@
       main { padding: 22px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
       main > * { min-width: 0; }
 
+      /* ---------------- first-run orientation ---------------- */
+      .orientation {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
+        gap: 40px;
+        padding: 20px 4px 30px;
+        border-bottom: 1px solid var(--line);
+      }
+      .orientation-copy { animation: enter 0.55s ease-out both; }
+      .orientation .eyebrow { color: var(--acid); }
+      .orientation h1 {
+        max-width: 680px;
+        margin: 10px 0 12px;
+        font-size: clamp(34px, 4.2vw, 58px);
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+        font-weight: 650;
+      }
+      .orientation-lead {
+        max-width: 58ch;
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .deployment-state {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .deployment-state p {
+        margin: 0;
+        color: var(--dim);
+        font-family: var(--mono);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+      .orientation-flow {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        animation: enter 0.55s 0.08s ease-out both;
+      }
+      .flow-step {
+        min-width: 0;
+        padding: 20px 17px;
+        color: inherit;
+        text-decoration: none;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+      .flow-step + .flow-step { border-left: 1px solid var(--line); }
+      .flow-step:hover { background: rgba(195, 255, 33, 0.045); transform: translateY(-2px); }
+      .flow-step span {
+        display: block;
+        color: var(--acid);
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .flow-step b { display: block; margin: 10px 0 7px; font-size: 14px; font-weight: 600; }
+      .flow-step small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+      .safety-line {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .safety-line b {
+        flex: none;
+        color: var(--amber);
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      @keyframes enter {
+        from { opacity: 0; transform: translateY(9px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
       .card {
         border: 1px solid var(--line);
         border-radius: var(--r);
@@ -196,6 +292,14 @@
         border-bottom: 1px solid var(--line);
       }
       .card-head h2 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+      .card-title { min-width: 0; }
+      .card-title p {
+        margin: 4px 0 0;
+        color: var(--dim);
+        font-family: var(--mono);
+        font-size: 9.5px;
+        line-height: 1.45;
+      }
       .card-head .pill { margin-left: auto; }
       .eyebrow {
         font-family: var(--mono);
@@ -255,7 +359,7 @@
         font-weight: 700;
         margin-left: 8px;
       }
-      .hero h1 {
+      .hero h2 {
         margin: 0 0 10px;
         font-size: clamp(23px, 2.5vw, 31px);
         font-weight: 600;
@@ -951,6 +1055,7 @@
 
       /* ---------------- responsive ---------------- */
       @media (max-width: 1100px) {
+        .orientation { grid-template-columns: 1fr; gap: 24px; }
         .hero, .live, .ledger, .audit, .policy, .anomaly { grid-column: span 12; }
         .policy-grid { grid-template-columns: 1fr; }
         .anomaly-grid { grid-template-columns: 1fr; }
@@ -968,10 +1073,16 @@
         .chrome-right { margin-left: auto; }
         .chrome-right .pill:not(.live) { display: none; }
         .topbar { flex-wrap: wrap; gap: 12px; padding: 14px; }
+        .brand small { display: none; }
         .segmented { order: 3; width: 100%; margin-left: 0; }
         .segmented a { flex: 1; padding: 7px 4px; font-size: 12px; text-align: center; }
         .bondchip { margin-left: auto; }
         main { padding: 12px; gap: 12px; }
+        .orientation { padding: 18px 4px 24px; }
+        .orientation h1 { font-size: 36px; }
+        .orientation-flow { grid-template-columns: 1fr; }
+        .flow-step + .flow-step { border-left: 0; border-top: 1px solid var(--line); }
+        .deployment-state, .safety-line { align-items: flex-start; flex-direction: column; }
         .hero { padding: 22px 18px; }
         .hero-pills .pill:last-child { display: none; }
         .paths { grid-template-columns: 1fr; }
@@ -1042,7 +1153,10 @@
       <div class="topbar">
         <div class="brand">
           <svg width="30" height="30" viewBox="0 0 44 44" aria-hidden="true"><use href="#dog" /></svg>
-          <span class="word">BITEBACK</span>
+          <span class="brand-copy">
+            <span class="word">BITEBACK</span>
+            <small>On-chain consumer protection</small>
+          </span>
         </div>
         <nav class="segmented" aria-label="Console sections">
           <a class="on" href="#overview">Overview</a>
@@ -1062,6 +1176,43 @@
       </div>
 
       <main>
+        <section class="orientation" aria-labelledby="orientationTitle">
+          <div class="orientation-copy">
+            <p class="eyebrow">Start here · 60-second overview</p>
+            <h1 id="orientationTitle">Detect chain risk. Resolve repeated charges together.</h1>
+            <p class="orientation-lead">
+              BITEBACK is an on-chain consumer-protection console. It watches each EVM chain for unusual behavior and turns one signed payment report into one verified case for every wallet affected by the same deterministic violation.
+            </p>
+            <div class="deployment-state">
+              <span class="pill" id="deploymentStatus"><i class="dot"></i><span>Checking environment</span></span>
+              <p id="deploymentDetail">Reading the public deployment configuration.</p>
+            </div>
+          </div>
+          <div>
+            <div class="orientation-flow" aria-label="How BITEBACK works">
+              <a class="flow-step" href="#anomalies">
+                <span>01 · Observe</span>
+                <b>Spot unusual chain behavior</b>
+                <small>The Graph and RPC data feed chain-specific Bayesian baselines for fees, TPS, failures, utilization, senders, and block timing.</small>
+              </a>
+              <a class="flow-step" href="#live">
+                <span>02 · Prove</span>
+                <b>Turn one report into group evidence</b>
+                <small>A wallet signs one confirmed payment. Deterministic rules find matching victims; 0G freezes the evidence and its hash.</small>
+              </a>
+              <a class="flow-step" href="#audit">
+                <span>03 · Resolve</span>
+                <b>Review once, settle once</b>
+                <small>The merchant approves the exact case before Hedera records the decision and distributes one authorized payout.</small>
+              </a>
+            </div>
+            <div class="safety-line">
+              <b>Safety boundary</b>
+              <span>Anomaly alerts can warn wallets, but they never create disputes, claims, settlement decisions, or payouts.</span>
+            </div>
+          </div>
+        </section>
+
         <section class="card hero" id="overview">
           <div class="hero-pills">
             <span class="pill" id="statusPill"><i class="dot"></i><span id="statusPillText">Checking</span></span>
@@ -1069,18 +1220,18 @@
             <span class="pill">Case <span id="caseId">loading…</span></span>
           </div>
           <div class="amount"><span id="heroAmount">0</span><small id="heroUnit">TX</small></div>
-          <h1 id="heroHeadline">One report. Every affected wallet. One case to resolve.</h1>
+          <h2 id="heroHeadline">Ready for a guided testnet proof.</h2>
           <p class="lead" id="heroCopy">
-            Users stop chasing protocols. Protocols stop investigating and calculating losses wallet by wallet.
+            Create three purchases and three duplicate retries, then follow one signed report through detection, evidence, approval, and collective payout.
           </p>
           <div class="paths" aria-label="BITEBACK product paths">
             <div class="path">
-              <b>01 · Launch path</b>
-              <span>One user reports once → BITEBACK finds the group and calculates the total loss.</span>
+              <b>Collective dispute path</b>
+              <span>Deterministic payment evidence can become a reviewed group case and an authorized payout.</span>
             </div>
             <div class="path">
-              <b>02 · Manual resolution</b>
-              <span>The protocol reviews one verified case, then contests or authorizes settlement.</span>
+              <b>Anomaly warning path</b>
+              <span>Probabilistic chain signals stay isolated as warnings until confirmed payment evidence exists.</span>
             </div>
           </div>
 
@@ -1098,16 +1249,19 @@
                   <path d="M2 1.4v9.2c0 .5.5.8 1 .5l7.4-4.6a.6.6 0 0 0 0-1L3 .9c-.5-.3-1 0-1 .5Z" />
                 </svg>
               </span>
-              <span id="runLabel">Create live charges</span>
+              <span id="runLabel">Run guided testnet proof</span>
             </button>
             <a class="btn ghost" id="openPayout" href="#" target="_blank" rel="noreferrer" hidden>Open payout ↗</a>
-            <span class="note">live proof of a merchant-authorized dispute settlement</span>
+            <span class="note">13 verifiable stages · no simulated settlement decisions</span>
           </div>
         </section>
 
         <section class="card live" id="live">
           <div class="card-head">
-            <h2>Dispute path · live proof</h2>
+            <div class="card-title">
+              <h2>Dispute path · live proof</h2>
+              <p>Follow the trigger, evidence boundary, human decision, and payout in order.</p>
+            </div>
             <span class="pill" id="livePhasePill">Idle</span>
           </div>
           <div class="steps">
@@ -1147,7 +1301,10 @@
 
         <section class="card ledger" id="evidence">
           <div class="card-head">
-            <h2>Evidence ledger</h2>
+            <div class="card-title">
+              <h2>Evidence ledger</h2>
+              <p>Canonical affected-wallet facts preserved on 0G Storage and verified by hash.</p>
+            </div>
             <span class="pill" id="evidencePill">0G Storage</span>
           </div>
           <div class="lrow head">
@@ -1160,7 +1317,10 @@
 
         <section class="card audit" id="audit">
           <div class="card-head">
-            <h2>Consensus audit</h2>
+            <div class="card-title">
+              <h2>Consensus audit</h2>
+              <p>Hedera Consensus Service records the evidence, decision, and settlement trail.</p>
+            </div>
             <span class="pill">Hedera mirror node</span>
           </div>
           <div class="tl" id="timelineRows"><p class="empty">Reading Mirror Node…</p></div>
@@ -1168,7 +1328,10 @@
 
         <section class="card anomaly" id="anomalies">
           <div class="card-head">
-            <h2>On-chain anomalies</h2>
+            <div class="card-title">
+              <h2>On-chain anomalies</h2>
+              <p>Independent five-minute chain-health warnings; never a dispute trigger.</p>
+            </div>
             <span class="pill" id="anomalyPill"><i class="dot"></i><span>Checking</span></span>
           </div>
           <div class="anomaly-toolbar">
@@ -1271,7 +1434,10 @@
 
         <section class="card policy" id="policy">
           <div class="card-head">
-            <h2>Policy compiler</h2>
+            <div class="card-title">
+              <h2>Policy compiler</h2>
+              <p>0G turns published merchant terms into a deterministic, inspectable rule.</p>
+            </div>
             <span class="pill">0G Compute · operator only</span>
           </div>
           <div class="policy-grid">
@@ -1327,6 +1493,8 @@
           "networkPill",
           "replayStatus",
           "livePill",
+          "deploymentStatus",
+          "deploymentDetail",
           "bondText",
           "statusPill",
           "statusPillText",
@@ -1463,6 +1631,14 @@
       }
 
       function renderBond(bond) {
+        if (bond.accountId === "not configured") {
+          elements.bondText.textContent = "READ-ONLY PREVIEW";
+          elements.bondText.style.color = "var(--muted)";
+          if (liveStage === "ready") {
+            elements.stepRefundDetail.textContent = "settlement credentials stay server-side";
+          }
+          return;
+        }
         const balance = hbar(bond.balanceTinybar);
         const allowance = hbar(bond.allowanceTinybar);
         elements.bondText.textContent = `${balance} HBAR · ${bond.protected ? "PROTECTED" : "ATTENTION"}`;
@@ -2002,6 +2178,10 @@
           }
           const selected = elements.anomalyChain.value;
           elements.anomalyWatch.disabled = false;
+          elements.anomalyRun.disabled = !config?.operatorAuth;
+          elements.anomalyRun.title = config?.operatorAuth
+            ? "Start one monitor pass for the selected chain."
+            : "Public previews expose monitoring reads only; operator credentials are required to run ingestion.";
           elements.anomalyChain.innerHTML = state.chains
             .map(
               (chain) =>
@@ -2024,7 +2204,7 @@
           );
           elements.anomalySource.textContent = chain.error
             ? chain.error
-            : `${chain.source.replaceAll("-", " ")} · ${chain.acceptedBuckets} accepted buckets · ${Math.round(chain.backfillProgress * 100)}% backfill · ${chain.confirmations} confirmations`;
+            : `${chain.source.replaceAll("-", " ")} · ${chain.acceptedBuckets} accepted buckets · ${Math.round(chain.backfillProgress * 100)}% backfill · ${chain.confirmations} confirmations${config?.operatorAuth ? "" : " · public read-only"}`;
           renderAnomalyMetrics(buckets.at(-1));
           renderAnomalyChart(buckets, expected);
           renderAnomalyAlerts(alerts);
@@ -2321,9 +2501,9 @@
         elements.caseId.textContent = "NOT CREATED";
         elements.heroAmount.textContent = "0";
         elements.heroUnit.textContent = "TX";
-        elements.heroHeadline.textContent = "One report. Every affected wallet. One case to resolve.";
+        elements.heroHeadline.textContent = "Ready for a guided testnet proof.";
         elements.heroCopy.textContent =
-          "Users stop chasing protocols. Protocols stop investigating and calculating losses wallet by wallet.";
+          "Create three purchases and three duplicate retries, then follow one signed report through detection, evidence, approval, and collective payout.";
         elements.statTransfers.textContent = "0";
         elements.statViolations.textContent = "0";
         elements.statBlock.textContent = "NOT STARTED";
@@ -2346,7 +2526,7 @@
         if (!run) {
           renderEmpty();
           renderLiveBody();
-          renderPrimaryAction(false, "Create live charges");
+          renderPrimaryAction(false, "Run guided testnet proof");
           return;
         }
 
@@ -2612,6 +2792,16 @@
             api("/api/demo/live"),
           ]);
           config = loadedConfig;
+          setPill(
+            elements.deploymentStatus,
+            config.demoReady
+              ? `${config.runtime} · live testnet ready`
+              : `${config.runtime} · presentation-safe`,
+            config.demoReady ? "live" : "",
+          );
+          elements.deploymentDetail.textContent = config.demoReady
+            ? "All testnet integrations are configured; operator actions still require the private token."
+            : "Public APIs, model research, and validation remain available. Settlement writes require server-side operator credentials.";
           elements.networkPill.textContent =
             `${config.sourceNetwork.replaceAll("-", " ")} → hedera`.toUpperCase();
           renderPolicy(config.rule, config.ruleHash);
@@ -2620,9 +2810,10 @@
           }
           renderLiveRun(live.run);
           if (!config.demoReady && !live.run) {
+            setPill(elements.livePill, "Public preview");
             elements.runProof.disabled = true;
             elements.runIcon.innerHTML = "";
-            elements.runLabel.textContent = "Read-only presentation";
+            elements.runLabel.textContent = "Presentation mode · read only";
             elements.runProof.title =
               "Configure the documented testnet environment to run the live settlement demo.";
             setPill(elements.livePhasePill, "Presentation mode");
@@ -2801,8 +2992,7 @@
         });
       });
 
-      load();
-      loadAnomalies();
+      load().then(loadAnomalies);
       loadAnomalyResearch().then((benchmarkAvailable) => {
         if (benchmarkAvailable) loadAnomalyBenchmark();
         else {

@@ -1057,6 +1057,8 @@ app.get("/api/config", async (context) => {
       ? `https://hashscan.io/testnet/topic/${process.env.HCS_TOPIC_ID}`
       : null,
     mcpUrl: `${new URL(context.req.url).origin}/mcp`,
+    runtime: process.env.VERCEL ? "Vercel" : "Local",
+    operatorAuth: Boolean(process.env.OPERATOR_TOKEN),
     demoReady: Boolean(
       process.env.OPERATOR_TOKEN &&
         process.env.SOURCE_MERCHANT_PRIVATE_KEY &&

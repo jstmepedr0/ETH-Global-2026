@@ -302,6 +302,13 @@ variables in `.env.example` to enable the full testnet flow. Vercel uses
 ephemeral `/tmp` JSON storage, so durable production state still requires an
 external database.
 
+The public preview configures only presentation-safe, preview-scoped values:
+Base, Optimism, and Arbitrum chain metadata, heartbeat timing, and Base Sepolia
+labels. Operator tokens, wallet keys, provider credentials, settlement accounts,
+and webhook secrets are deliberately absent. The UI identifies this mode and
+keeps ingestion and settlement controls read-only instead of implying that an
+unconfigured integration is live.
+
 ## Commands
 
 ```text
