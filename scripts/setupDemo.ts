@@ -89,7 +89,7 @@ try {
         }
       : undefined;
   if (!bond) {
-    console.log("Creating 100 HBAR Consumer Bond account...");
+    console.log("Creating 100 HBAR settlement reserve account...");
     bond = await createAccount(new Hbar(101));
   }
 
@@ -161,7 +161,7 @@ try {
   const bondFundingTarget = 10_100_000_000n;
   const topUp = bondFundingTarget - BigInt(bondBalance.hbars.toTinybars().toString());
   if (topUp > 0n) {
-    console.log("Restoring Consumer Bond funding after allowance fees...");
+    console.log("Restoring settlement reserve funding after allowance fees...");
     const response = await new TransferTransaction()
       .addHbarTransfer(operatorAccountId, Hbar.fromTinybars((-topUp).toString()))
       .addHbarTransfer(bond.accountId, Hbar.fromTinybars(topUp.toString()))

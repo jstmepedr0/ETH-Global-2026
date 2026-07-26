@@ -1,0 +1,143 @@
+{
+  "version": "anomaly-labels-v1",
+  "window": {
+    "from": "2025-07-26T00:00:00Z",
+    "to": "2026-07-26T00:00:00Z"
+  },
+  "labels": [
+    {
+      "id": "base-2025-08-05-unsafe-head-delay",
+      "chainId": "base",
+      "name": "Base Mainnet unsafe head delay",
+      "startedAt": "2025-08-05T06:07:47Z",
+      "endedAt": "2025-08-05T06:41:00Z",
+      "component": "block-production",
+      "observability": "canonical",
+      "exclusionReason": null,
+      "source": "https://status.base.org/incidents/kdq3t8s13gfs"
+    },
+    {
+      "id": "base-2025-10-20-limited-capacity",
+      "chainId": "base",
+      "name": "Base Mainnet limited network capacity",
+      "startedAt": "2025-10-20T08:23:53Z",
+      "endedAt": "2025-10-20T09:50:54Z",
+      "component": "block-production",
+      "observability": "canonical",
+      "exclusionReason": null,
+      "source": "https://status.base.org/incidents/yfb0z5876zyp"
+    },
+    {
+      "id": "base-2025-10-20-inclusion-latency",
+      "chainId": "base",
+      "name": "Base Mainnet high latency and transaction inclusion times",
+      "startedAt": "2025-10-20T18:58:39Z",
+      "endedAt": "2025-10-20T21:07:32Z",
+      "component": "block-production",
+      "observability": "canonical",
+      "exclusionReason": null,
+      "source": "https://status.base.org/incidents/3h53zgq1hhx5"
+    },
+    {
+      "id": "base-2026-01-22-transaction-drops",
+      "chainId": "base",
+      "name": "High transaction drops and inclusion delays",
+      "startedAt": "2026-01-22T22:19:05Z",
+      "endedAt": "2026-01-31T21:51:55Z",
+      "component": "transaction-inclusion",
+      "observability": "canonical",
+      "exclusionReason": null,
+      "source": "https://status.base.org/incidents/zfvvgt46j9d8"
+    },
+    {
+      "id": "optimism-2026-03-04-chain-stalls",
+      "chainId": "optimism",
+      "name": "OP Mainnet slow block building and intermittent stalls",
+      "startedAt": "2026-03-04T23:04:00Z",
+      "endedAt": "2026-03-04T23:14:00Z",
+      "component": "transaction-sequencing",
+      "observability": "canonical",
+      "exclusionReason": null,
+      "source": "https://status.optimism.io/history/2"
+    },
+    {
+      "id": "base-2026-05-13-delayed-transactions",
+      "chainId": "base",
+      "name": "Base Mainnet delayed transactions",
+      "startedAt": "2026-05-13T16:44:47Z",
+      "endedAt": "2026-05-14T05:04:08Z",
+      "component": "block-production",
+      "observability": "canonical",
+      "exclusionReason": null,
+      "source": "https://status.base.org/incidents/0h468wjw300f"
+    },
+    {
+      "id": "base-2026-06-25-chain-stall",
+      "chainId": "base",
+      "name": "Base Mainnet chain stall",
+      "startedAt": "2026-06-25T15:47:13Z",
+      "endedAt": "2026-06-25T17:43:13Z",
+      "component": "block-production",
+      "observability": "observer-simulation",
+      "exclusionReason": "Canonical recovered block timestamps do not preserve the wall-clock observer delay.",
+      "source": "https://blog.base.dev/postmortem-june-25th-block-production-outage"
+    },
+    {
+      "id": "optimism-2026-07-07-unsafe-head-stall",
+      "chainId": "optimism",
+      "name": "Blocks produced but not distributed",
+      "startedAt": "2026-07-07T18:03:00Z",
+      "endedAt": "2026-07-07T19:35:00Z",
+      "component": "transaction-sequencing",
+      "observability": "observer-simulation",
+      "exclusionReason": "Canonical recovered block timestamps do not preserve the wall-clock observer delay.",
+      "source": "https://status.optimism.io/cmrazrvph0am30rns9tzwb2oa"
+    }
+  ],
+  "exclusions": [
+    {
+      "id": "arbitrum-2026-01-07-batch-posting",
+      "chainId": "arbitrum",
+      "name": "Arbitrum One batch posting issue",
+      "startedAt": "2026-01-07T02:30:00Z",
+      "endedAt": "2026-01-07T06:32:00Z",
+      "component": "batch-posting",
+      "observability": "excluded",
+      "exclusionReason": "Batch posting did not stop Arbitrum One sequencing.",
+      "source": "https://status.arbitrum.io/cmk3hc4qf03be1et0bxvpym69"
+    },
+    {
+      "id": "arbitrum-2026-05-20-feed-connections",
+      "chainId": "arbitrum",
+      "name": "Arbitrum One feed connection issues",
+      "startedAt": "2026-05-20T19:55:00Z",
+      "endedAt": "2026-05-20T20:11:00Z",
+      "component": "feed-connectivity",
+      "observability": "excluded",
+      "exclusionReason": "Feed connectivity is an off-chain distribution issue.",
+      "source": "https://status.arbitrum.io/default/cmpfn10dh00o0peksqhe3iqz7"
+    },
+    {
+      "id": "base-2026-05-29-withdrawal-delay",
+      "chainId": "base",
+      "name": "Base Mainnet withdrawal delay",
+      "startedAt": "2026-05-29T15:55:31Z",
+      "endedAt": "2026-05-31T03:38:45Z",
+      "component": "bridge-withdrawals",
+      "observability": "excluded",
+      "exclusionReason": "Bridge withdrawals are outside the monitored chain metrics.",
+      "source": "https://status.base.org/history"
+    },
+    {
+      "id": "base-2026-06-02-flashblocks",
+      "chainId": "base",
+      "name": "Base Mainnet periodic Flashblocks instability",
+      "startedAt": "2026-06-02T22:32:28Z",
+      "endedAt": "2026-06-22T16:35:05Z",
+      "component": "flashblocks",
+      "observability": "excluded",
+      "exclusionReason": "Flashblocks streaming is excluded from canonical block metrics.",
+      "source": "https://status.base.org/history"
+    }
+  ]
+}

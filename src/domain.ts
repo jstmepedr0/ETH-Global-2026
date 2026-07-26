@@ -8,6 +8,7 @@ export type IncidentStatus =
   | "DETECTED"
   | "CLAIMING"
   | "EVIDENCE_READY"
+  | "APPROVED"
   | "REJECTED"
   | "SETTLING"
   | "SETTLED"
@@ -75,9 +76,21 @@ export interface GraphSource {
   queriedAt: string;
 }
 
+export interface DisputeReport {
+  version: 1;
+  reporter: string;
+  txHash: string;
+  merchant: string;
+  token: string;
+  timestamp: number;
+  signature: string;
+  signedAt: string;
+}
+
 export interface EvidencePack {
   schema: "biteback.evidence.v1";
   incidentId: string;
+  trigger?: DisputeReport;
   rule: Rule & { hash: string };
   source: GraphSource;
   victims: Array<{
@@ -103,17 +116,15 @@ export interface Claim {
   joinedAt: string;
 }
 
-/**
- * Recibo de contestacao da via de disputa, onde nao ha regra assinada nem bond.
- * Na via integrada, o merchant ja consentiu ao assinar a regra e a allowance.
- */
 export interface Decision {
-  decision: "REJECT";
+  decision: "ACCEPT" | "REJECT";
   evidenceHash: string;
   totalTinybar: string;
   counterEvidenceHash?: string;
   reason?: string;
   nonce: string;
+  expiresAt: number;
+  signer: string;
   signature: string;
   decidedAt: string;
 }
@@ -167,6 +178,126 @@ export interface Incident {
   payout?: Payout;
 }
 
+export type AnomalyMetricName =
+  | "blocksPerMinute"
+  | "tps"
+  | "averageTransactionFeeWei"
+  | "averageEffectiveGasPriceWei"
+  | "gasUtilization"
+  | "failedTransactionRate"
+  | "averageBlockIntervalSeconds"
+  | "averageUniqueSendersPerBlock";
+
+export type AnomalyMetricValues = Partial<Record<AnomalyMetricName, number>>;
+
+export interface AnomalyMetricBucket {
+  id: string;
+  chainId: string;
+  start: number;
+  end: number;
+  firstBlock: number;
+  lastBlock: number;
+  source: {
+    provider: "the-graph-substreams" | "evm-rpc";
+    endpoint: string;
+    queriedAt: string;
+  };
+  metrics: AnomalyMetricValues;
+  learning: "accepted" | "quarantined";
+}
+
+export interface AnomalySignal {
+  metric: AnomalyMetricName;
+  direction: "high" | "low";
+  observed: number;
+  expected: number;
+  lower99: number;
+  upper99: number;
+  lower999: number;
+  upper999: number;
+  severity: "warning" | "critical";
+  rawPValue?: number;
+  conformalPValue?: number;
+  adjustedPValue?: number;
+  score?: number;
+  calibrationSamples?: number;
+}
+
+export interface AnomalyAlert {
+  id: string;
+  chainId: string;
+  status: "open" | "acknowledged" | "resolved";
+  severity: "warning" | "critical";
+  startedAt: number;
+  endedAt: number;
+  firstBlock: number;
+  lastBlock: number;
+  bucketIds: string[];
+  signals: AnomalySignal[];
+  modelVersion: "bayesian-nig-v1" | "bayesian-nig-conformal-v2";
+  source: AnomalyMetricBucket["source"];
+  createdAt: string;
+  updatedAt: string;
+  acknowledgedAt?: string;
+  resolvedAt?: string;
+  classification?: "expected" | "confirmed";
+  note?: string;
+}
+
+export interface AnomalyMonitorCursor {
+  chainId: string;
+  lastFinalizedBlock?: number;
+  backfillStartBlock?: number;
+  backfillTargetBlock?: number;
+  backfillProgress?: number;
+  heartbeatAt?: string;
+  lastObservedHead?: number;
+  lastObservedBlockTimestamp?: number;
+  rpcLatencyMs?: number;
+  heartbeatQuorum?: "single" | "agreed" | "disagreed";
+  secondaryObservedHead?: number;
+  secondaryBlockTimestamp?: number;
+  secondaryRpcLatencyMs?: number;
+  consecutiveHeartbeatFailures?: number;
+  heartbeatError?: string;
+  status: "idle" | "syncing" | "ready" | "degraded";
+  ready: boolean;
+  acceptedBuckets: number;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  error?: string;
+}
+
+export interface AnomalyWebhookDelivery {
+  id: string;
+  alertId: string;
+  event: "anomaly.opened" | "anomaly.escalated" | "anomaly.resolved";
+  attempts: number;
+  createdAt: string;
+  nextAttemptAt: string;
+  deliveredAt?: string;
+  failedAt?: string;
+  lastError?: string;
+}
+
+export interface AnomalyWalletWatch {
+  id: string;
+  wallet: string;
+  chainId: string;
+  createdAt: string;
+}
+
+export interface AnomalyWalletNotification {
+  id: string;
+  watchId: string;
+  wallet: string;
+  chainId: string;
+  alertId: string;
+  event: AnomalyWebhookDelivery["event"];
+  severity: AnomalyAlert["severity"];
+  createdAt: string;
+}
+
 export interface Database {
   rules: Rule[];
   pendingRules: PendingRule[];
@@ -175,6 +306,12 @@ export interface Database {
   settledPaymentIds: string[];
   usedNonces: string[];
   auditEvents: AuditEvent[];
+  anomalyMetricBuckets: AnomalyMetricBucket[];
+  anomalyAlerts: AnomalyAlert[];
+  anomalyMonitorCursors: AnomalyMonitorCursor[];
+  anomalyWebhookDeliveries: AnomalyWebhookDelivery[];
+  anomalyWalletWatches: AnomalyWalletWatch[];
+  anomalyWalletNotifications: AnomalyWalletNotification[];
 }
 
 const emptyDatabase = (): Database => ({
@@ -185,6 +322,12 @@ const emptyDatabase = (): Database => ({
   settledPaymentIds: [],
   usedNonces: [],
   auditEvents: [],
+  anomalyMetricBuckets: [],
+  anomalyAlerts: [],
+  anomalyMonitorCursors: [],
+  anomalyWebhookDeliveries: [],
+  anomalyWalletWatches: [],
+  anomalyWalletNotifications: [],
 });
 
 export class BitebackError extends Error {
@@ -212,6 +355,12 @@ export class Store {
       database.paymentsSeen ??= [];
       database.usedNonces ??= [];
       database.auditEvents ??= [];
+      database.anomalyMetricBuckets ??= [];
+      database.anomalyAlerts ??= [];
+      database.anomalyMonitorCursors ??= [];
+      database.anomalyWebhookDeliveries ??= [];
+      database.anomalyWalletWatches ??= [];
+      database.anomalyWalletNotifications ??= [];
       const currentTopicId = process.env.HCS_TOPIC_ID;
       if (currentTopicId) {
         for (const event of database.auditEvents) {
@@ -270,6 +419,29 @@ export function hash(value: unknown): string {
   return `sha256:${createHash("sha256").update(input).digest("hex")}`;
 }
 
+export function settlementDecisionMessage(
+  incidentId: string,
+  evidenceHash: string,
+  decision: Decision["decision"],
+  totalTinybar: string,
+  nonce: string,
+  expiresAt: number,
+): string {
+  return [
+    "BITEBACK_DECISION_V1",
+    `incidentId=${incidentId}`,
+    `evidenceHash=${evidenceHash}`,
+    `decision=${decision}`,
+    `totalTinybar=${totalTinybar}`,
+    `nonce=${nonce}`,
+    `expiresAt=${expiresAt}`,
+  ].join("\n");
+}
+
+export function disputeReportMessage(txHash: string): string {
+  return ["BITEBACK_REPORT_V1", `txHash=${txHash.toLowerCase()}`].join("\n");
+}
+
 function sortPayments(left: Payment, right: Payment): number {
   return (
     left.timestamp - right.timestamp ||
@@ -284,7 +456,7 @@ function sortPayments(left: Payment, right: Payment): number {
  *
  * Nao e deteccao de "pagamento duplicado": sem um requestId no pagamento, duas
  * cobrancas iguais no mesmo dia podem ser duas compras legitimas. O que medimos
- * e a violacao de uma regra que o proprio merchant publicou e assinou.
+ * e a violacao de uma regra compilada da politica publicada pelo merchant.
  */
 /**
  * A regra sem assinatura — e sobre isto que o hash assinado pelo merchant e
@@ -391,6 +563,7 @@ export function buildIncident(
   rule: Rule,
   source: GraphSource,
   violations: Violation[],
+  trigger?: DisputeReport,
 ): Incident {
   if (violations.length === 0) {
     throw new BitebackError("NO_VIOLATIONS", "No deterministic violations were found.", 404);
@@ -419,6 +592,7 @@ export function buildIncident(
   const evidence: EvidencePack = {
     schema: "biteback.evidence.v1",
     incidentId,
+    ...(trigger ? { trigger } : {}),
     rule: { ...rule, hash: ruleHash },
     source,
     victims,
@@ -448,17 +622,11 @@ export function buildIncident(
   };
 }
 
-/**
- * Nao existe estado ACCEPTED. Um merchant integrado consente UMA vez, antes de
- * existir qualquer incidente: assina a regra e aprova a allowance. Pedir um
- * ACCEPT depois seria pedir permissao para executar uma permissao ja concedida.
- *
- * REJECTED so e alcancavel na via de disputa, onde nao ha regra assinada.
- */
 const transitions: Record<IncidentStatus, IncidentStatus[]> = {
   DETECTED: ["CLAIMING"],
   CLAIMING: ["EVIDENCE_READY"],
-  EVIDENCE_READY: ["SETTLING", "REJECTED"],
+  EVIDENCE_READY: ["APPROVED", "REJECTED"],
+  APPROVED: ["SETTLING"],
   REJECTED: [],
   SETTLING: ["SETTLED", "SETTLEMENT_FAILED"],
   SETTLED: [],

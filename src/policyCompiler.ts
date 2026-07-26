@@ -2,11 +2,12 @@
  * Policy Compiler — inferência em 0G Compute.
  *
  * Converte os termos publicados de um merchant, em linguagem natural, numa
- * regra determinística que o merchant depois assina.
+ * regra determinística contestável. O merchant só autoriza dinheiro depois de
+ * rever o Evidence Pack de um incidente concreto.
  *
  * A LINHA VERMELHA: o modelo escreve a REGRA, nunca o resultado. Não vê
  * pagamentos, não conta cobranças, não calcula montantes e não escolhe
- * destinatários. Assim que a regra é assinada, o modelo está fora do circuito
+ * destinatários. Assim que a regra é compilada, o modelo está fora do circuito
  * e a deteção é 100% determinística e reproduzível por terceiros.
  *
  * É por isto que não devolvemos nada parecido com "claim válido, 4 HBAR,
@@ -149,7 +150,7 @@ export async function compilePolicy(terms: string): Promise<CompileResult> {
   return { rule: parsed.data, model, endpoint, raw: text };
 }
 
-/** A mensagem que o merchant assina. Prende a regra ao seu conteúdo exacto. */
+/** Assinatura opcional da política para a futura via integrada. */
 export function ruleSignatureMessage(ruleId: string, ruleHash: string): string {
   return ["BITEBACK_RULE_V1", `ruleId=${ruleId}`, `ruleHash=${ruleHash}`].join("\n");
 }

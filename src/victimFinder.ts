@@ -4,6 +4,7 @@ import {
   buildIncident,
   detectPolicyViolations,
   transition,
+  type DisputeReport,
   type EvidencePack,
   type GraphSource,
   type Incident,
@@ -63,6 +64,7 @@ export class VictimFinder {
     from: number,
     to: number,
     replayIncidentId?: string,
+    trigger?: DisputeReport,
   ): Promise<ScanResult> {
     const rule = await this.ensureRule();
     if (rule.id !== ruleId) {
@@ -81,7 +83,7 @@ export class VictimFinder {
         ? payments
         : payments.filter(({ payer }) => configuredVictims.includes(payer.toLowerCase()));
     const violations = detectPolicyViolations(rule, eligiblePayments);
-    const candidate = buildIncident(rule, source, violations);
+    const candidate = buildIncident(rule, source, violations, trigger);
     const verification = {
       provider: source.provider,
       network: source.network,

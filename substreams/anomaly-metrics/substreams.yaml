@@ -1,0 +1,24 @@
+specVersion: v0.1.0
+package:
+  name: biteback_anomaly_metrics
+  version: v1.0.0
+  url: https://github.com/biteback
+
+protobuf:
+  files:
+    - biteback/anomaly/v1/metrics.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ./target/wasm32-unknown-unknown/release/biteback_anomaly_metrics.wasm
+
+modules:
+  - name: map_block_metrics
+    kind: map
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:biteback.anomaly.v1.BlockMetrics

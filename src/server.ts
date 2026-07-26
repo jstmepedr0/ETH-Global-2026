@@ -10,6 +10,7 @@ import {
   Wallet,
   getAddress,
   hexlify,
+  id as ethersId,
   randomBytes as ethersRandomBytes,
   verifyMessage,
 } from "ethers";
@@ -19,10 +20,13 @@ import {
   RULE_ID,
   Store,
   detectPolicyViolations,
+  disputeReportMessage,
   hash,
   ruleWithoutSignature,
+  settlementDecisionMessage,
   transition,
   type Decision,
+  type DisputeReport,
   type Incident,
   type Payout,
   type Rule,
@@ -42,10 +46,21 @@ import { verifyAndJoinClaim, type JoinClaimInput } from "./claims.js";
 import { archiveEvidence, verifyArchivedEvidence } from "./evidence.js";
 import { queryPayments, verifySourcePayments } from "./graph.js";
 import { compilePolicy, ruleSignatureMessage } from "./policyCompiler.js";
+import {
+  AnomalyMonitor,
+  anomalyMonitoringEnabled,
+  anomalyWatchMessage,
+} from "./anomalies.js";
+import {
+  ANOMALY_MODEL_INDEX,
+  ANOMALY_RESEARCH_INDEX,
+  readAnnualBenchmark,
+} from "./anomalyBenchmark.js";
 
 const store = new Store();
 await store.load();
 const victimFinder = new VictimFinder(store);
+const anomalyMonitor = new AnomalyMonitor(store);
 const app = new Hono();
 
 const DEMO_PROVIDER = {
@@ -63,9 +78,13 @@ type LiveDemoStage =
   | "first-charges"
   | "retry-delay"
   | "second-charges"
+  | "report"
+  | "reporting"
   | "graph"
   | "claims"
   | "evidence"
+  | "authorization"
+  | "authorizing"
   | "refund"
   | "complete"
   | "failed";
@@ -103,6 +122,7 @@ interface LiveDemoRun {
     queriedAt?: string;
     error?: string;
   };
+  report?: DisputeReport;
   claimsAuthorized: number;
   incidentId?: string;
   evidence?: {
@@ -115,6 +135,18 @@ interface LiveDemoRun {
 }
 
 let liveDemoRun: LiveDemoRun | undefined;
+let liveDemoContext:
+  | {
+      id: string;
+      victims: Array<{
+        label: string;
+        wallet: ReturnType<typeof Wallet.createRandom>;
+        payoutAccountId: string;
+      }>;
+      windowStart: number;
+      windowEnd: number;
+    }
+  | undefined;
 
 function updateLiveDemo(
   id: string,
@@ -149,6 +181,76 @@ async function localApi<T>(
     throw new Error(body.error?.message ?? `${path} returned ${response.status}.`);
   }
   return body;
+}
+
+async function resolveDisputeReport(
+  txHash: string,
+  signature: string,
+): Promise<{ report: DisputeReport; rule: Rule; from: number; to: number }> {
+  let reporter: string;
+  try {
+    reporter = getAddress(verifyMessage(disputeReportMessage(txHash), signature));
+  } catch {
+    throw new BitebackError("INVALID_REPORT_SIGNATURE", "The wallet report signature is invalid.", 401);
+  }
+
+  const provider = new JsonRpcProvider(
+    process.env.SOURCE_RPC_URL ?? "https://sepolia.base.org",
+  );
+  const receipt = await provider.getTransactionReceipt(txHash);
+  if (!receipt || receipt.status !== 1) {
+    throw new BitebackError("INVALID_REPORTED_PAYMENT", "The reported transaction is not confirmed.", 404);
+  }
+  const transferTopic = ethersId("Transfer(address,address,uint256)");
+  const transfers = receipt.logs
+    .filter(
+      ({ topics }) =>
+        topics.length >= 3 && topics[0]?.toLowerCase() === transferTopic.toLowerCase(),
+    )
+    .map((log) => ({
+      token: log.address.toLowerCase(),
+      payer: getAddress(`0x${log.topics[1]!.slice(-40)}`),
+      merchant: getAddress(`0x${log.topics[2]!.slice(-40)}`),
+    }))
+    .filter(({ payer }) => payer === reporter);
+  const rules = store.read().rules;
+  const matched = transfers
+    .map((transfer) => ({
+      transfer,
+      rule: rules.find(
+        (rule) =>
+          rule.token.toLowerCase() === transfer.token &&
+          rule.merchant.toLowerCase() === transfer.merchant.toLowerCase(),
+      ),
+    }))
+    .find(({ rule }) => Boolean(rule));
+  if (!matched?.rule) {
+    throw new BitebackError(
+      "RULE_NOT_FOUND",
+      "The reported payment does not match a compiled merchant policy.",
+      404,
+    );
+  }
+  const block = await provider.getBlock(receipt.blockNumber);
+  if (!block) {
+    throw new BitebackError("INVALID_REPORTED_PAYMENT", "The payment block was not found.", 404);
+  }
+  const bucket = Math.floor(block.timestamp / matched.rule.bucketSeconds);
+  return {
+    report: {
+      version: 1,
+      reporter: reporter.toLowerCase(),
+      txHash: txHash.toLowerCase(),
+      merchant: matched.transfer.merchant.toLowerCase(),
+      token: matched.transfer.token,
+      timestamp: block.timestamp,
+      signature,
+      signedAt: new Date().toISOString(),
+    },
+    rule: matched.rule,
+    from: bucket * matched.rule.bucketSeconds,
+    to: (bucket + 1) * matched.rule.bucketSeconds - 1,
+  };
 }
 
 async function executeLiveDemo(id: string): Promise<void> {
@@ -311,18 +413,58 @@ async function executeLiveDemo(id: string): Promise<void> {
   ]);
   const windowStart = (firstBlockData?.timestamp ?? Math.floor(Date.now() / 1000)) - 15;
   const windowEnd = (lastBlockData?.timestamp ?? Math.floor(Date.now() / 1000)) + 30;
-  process.env.SOURCE_VICTIM_ADDRESSES = victims
-    .map(({ wallet }) => wallet.address.toLowerCase())
-    .join(",");
+  process.env.SOURCE_VICTIM_ADDRESSES = "";
   process.env.SOURCE_WINDOW_START = String(windowStart);
   process.env.SOURCE_WINDOW_END = String(windowEnd);
   process.env.SOURCE_START_BLOCK = String(firstBlock);
   process.env.SOURCE_STOP_BLOCK = String(requiredBlock + 1);
 
+  liveDemoContext = {
+    id,
+    victims: victims.map(({ label, wallet, payoutAccountId }) => ({
+      label,
+      wallet,
+      payoutAccountId: payoutAccountId!,
+    })),
+    windowStart,
+    windowEnd,
+  };
+  updateLiveDemo(id, {
+    stage: "report",
+    message: "Six charges exist on Base. Wallet A must report one before BITEBACK scans.",
+    base: { latestBlock, firstChargeBlock: firstBlock, requiredBlock },
+    graph: {
+      status: "idle",
+      queryCount: 0,
+      transferCount: 0,
+      affectedWallets: 0,
+    },
+  });
+}
+
+async function continueLiveDemoAfterReport(id: string): Promise<void> {
+  const context = liveDemoContext;
+  const run = liveDemoRun;
+  if (!context || context.id !== id || !run || run.id !== id || run.stage !== "reporting") {
+    throw new BitebackError("INVALID_REQUEST", "The live run is not awaiting a report.", 409);
+  }
+  const reporter = context.victims[0]!;
+  const reportedCharge = run.charges.find(
+    ({ label, sequence }) => label === reporter.label && sequence === 2,
+  );
+  if (!reportedCharge?.txHash) {
+    throw new BitebackError("INVALID_REQUEST", "Wallet A has no confirmed charge to report.", 409);
+  }
+  const signature = await reporter.wallet.signMessage(
+    disputeReportMessage(reportedCharge.txHash),
+  );
+  const verifiedReport = await resolveDisputeReport(reportedCharge.txHash, signature);
+
+  const rule = await victimFinder.ensureRule();
   updateLiveDemo(id, {
     stage: "graph",
-    message: "Base confirmed all six charges. Waiting for The Graph to index them.",
-    base: { latestBlock, firstChargeBlock: firstBlock, requiredBlock },
+    message: "Wallet A's signed report is verified. The Graph is searching for every match.",
+    report: verifiedReport.report,
     graph: {
       status: "querying",
       queryCount: 0,
@@ -330,11 +472,10 @@ async function executeLiveDemo(id: string): Promise<void> {
       affectedWallets: 0,
     },
   });
-
-  const rule = await victimFinder.ensureRule();
   let scan:
     | {
         incident: Incident;
+        report: DisputeReport;
         verification: LiveDemoRun["graph"] & { provider?: string; network?: string };
       }
     | undefined;
@@ -346,11 +487,8 @@ async function executeLiveDemo(id: string): Promise<void> {
         queryCount: attempt,
       };
       updateLiveDemo(id, {});
-      const result = await queryPayments(windowStart, windowEnd);
-      const watched = new Set(victims.map(({ wallet }) => wallet.address.toLowerCase()));
-      const payments = result.payments.filter(({ payer }) =>
-        watched.has(payer.toLowerCase()),
-      );
+      const result = await queryPayments(context.windowStart, context.windowEnd);
+      const payments = result.payments;
       const violations = detectPolicyViolations(rule, payments);
       liveDemoRun!.graph = {
         status: payments.length >= 6 ? "indexed" : "querying",
@@ -367,9 +505,9 @@ async function executeLiveDemo(id: string): Promise<void> {
       );
       updateLiveDemo(id, {});
       if (payments.length >= 6 && violations.length === 3) {
-        scan = await localApi("/api/scan", {
+        scan = await localApi("/api/report", {
           method: "POST",
-          body: JSON.stringify({ ruleId: rule.id, from: windowStart, to: windowEnd }),
+          body: JSON.stringify({ txHash: reportedCharge.txHash, signature }),
         });
         break;
       }
@@ -388,13 +526,14 @@ async function executeLiveDemo(id: string): Promise<void> {
 
   updateLiveDemo(id, {
     stage: "claims",
-    message: "The affected wallets are authorizing their Hedera recipients.",
+    message: "One reporter became three affected wallets. They are authorizing recipients.",
+    report: scan.report,
     incidentId: scan.incident.id,
     claimsAuthorized: 0,
   });
 
   const expiresAt = Math.floor(Date.now() / 1000) + 3600;
-  for (const victim of victims) {
+  for (const victim of context.victims) {
     const nonce = cryptoRandomBytes(16).toString("hex");
     const payoutAccountId = victim.payoutAccountId!;
     const delegation = [
@@ -428,7 +567,7 @@ async function executeLiveDemo(id: string): Promise<void> {
   const frozen = await localApi<{
     rootHash: string;
     evidenceHash: string;
-  }>(`/api/incidents/${scan.incident.id}/freeze?settle=false`, {
+  }>(`/api/incidents/${scan.incident.id}/freeze`, {
     method: "POST",
     body: "{}",
   });
@@ -444,16 +583,62 @@ async function executeLiveDemo(id: string): Promise<void> {
   });
 
   updateLiveDemo(id, {
+    stage: "authorization",
+    message: "Evidence ready. ByteMeter must explicitly authorize this settlement.",
+  });
+}
+
+async function authorizeLiveDemoSettlement(id: string): Promise<void> {
+  const run = liveDemoRun;
+  if (
+    !run ||
+    run.id !== id ||
+    !["authorization", "authorizing"].includes(run.stage) ||
+    !run.incidentId
+  ) {
+    throw new BitebackError(
+      "INCIDENT_NOT_SETTLEABLE",
+      "The live incident is not awaiting merchant authorization.",
+      409,
+    );
+  }
+  const incident = await localApi<Incident>(`/api/incidents/${run.incidentId}`);
+  const nonce = cryptoRandomBytes(16).toString("hex");
+  const expiresAt = Math.floor(Date.now() / 1000) + 300;
+  const merchantKey = process.env.SOURCE_MERCHANT_PRIVATE_KEY;
+  if (!merchantKey) throw new Error("SOURCE_MERCHANT_PRIVATE_KEY is required.");
+  const merchant = new Wallet(merchantKey);
+  const signature = await merchant.signMessage(
+    settlementDecisionMessage(
+      incident.id,
+      incident.evidenceHash,
+      "ACCEPT",
+      incident.evidence.totals.payoutTinybar,
+      nonce,
+      expiresAt,
+    ),
+  );
+  await localApi(`/api/incidents/${incident.id}/decision`, {
+    method: "POST",
+    body: JSON.stringify({
+      decision: "ACCEPT",
+      evidenceHash: incident.evidenceHash,
+      nonce,
+      expiresAt,
+      signature,
+    }),
+  });
+  updateLiveDemo(id, {
     stage: "refund",
-    message: "Hedera is executing one atomic payout from the Consumer Bond.",
+    message: "Merchant authorization verified. Hedera is executing one atomic payout.",
   });
   const { payout } = await localApi<{ payout: Payout }>(
-    `/api/incidents/${scan.incident.id}/settle`,
+    `/api/incidents/${incident.id}/settle`,
     { method: "POST", body: "{}" },
   );
   updateLiveDemo(id, {
     stage: "complete",
-    message: "Live incident settled successfully.",
+    message: "Merchant-authorized settlement completed successfully.",
     payout,
   });
 }
@@ -525,25 +710,6 @@ function getIncident(database: ReturnType<Store["read"]>, id: string): Incident 
   return incident;
 }
 
-function decisionMessage(
-  incidentId: string,
-  evidenceHash: string,
-  decision: "REJECT",
-  totalTinybar: string,
-  nonce: string,
-  expiresAt: number,
-): string {
-  return [
-    "BITEBACK_DECISION_V1",
-    `incidentId=${incidentId}`,
-    `evidenceHash=${evidenceHash}`,
-    `decision=${decision}`,
-    `totalTinybar=${totalTinybar}`,
-    `nonce=${nonce}`,
-    `expiresAt=${expiresAt}`,
-  ].join("\n");
-}
-
 async function publishPayoutAudit(incidentId: string, payout: Payout): Promise<void> {
   try {
     await publishAudit(
@@ -553,7 +719,7 @@ async function publishPayoutAudit(incidentId: string, payout: Payout): Promise<v
       {
         recipients: payout.recipients,
         totalTinybar: payout.totalTinybar,
-        autonomous: true,
+        merchantAuthorized: true,
       },
       {
         dedupeKey: `payout:${incidentId}:submitted`,
@@ -619,7 +785,7 @@ async function executeSettlementAttempt(
     {
       recipients: attempt.recipients,
       totalTinybar: attempt.totalTinybar,
-      autonomous: true,
+      merchantAuthorized: true,
     },
     {
       dedupeKey: `payout:${incidentId}:submitted`,
@@ -695,10 +861,55 @@ async function settleIncident(incidentId: string): Promise<Payout> {
     current = getIncident(store.read(), incidentId);
   }
 
-  if (current.status !== "EVIDENCE_READY" && current.status !== "SETTLEMENT_FAILED") {
+  if (current.status !== "APPROVED" && current.status !== "SETTLEMENT_FAILED") {
     throw new BitebackError(
-      "INCIDENT_NOT_SETTLEABLE",
-      "The evidence must be frozen before settlement.",
+      "MERCHANT_APPROVAL_REQUIRED",
+      "The merchant must explicitly accept the frozen settlement before payout.",
+      409,
+    );
+  }
+  const decision = current.decision;
+  if (
+    !decision ||
+    decision.decision !== "ACCEPT" ||
+    decision.evidenceHash !== current.evidenceHash ||
+    decision.totalTinybar !== current.evidence.totals.payoutTinybar
+  ) {
+    throw new BitebackError(
+      "MERCHANT_APPROVAL_REQUIRED",
+      "The merchant authorization does not match this evidence and payout total.",
+      409,
+    );
+  }
+  let recoveredDecisionSigner: string;
+  try {
+    recoveredDecisionSigner = verifyMessage(
+      settlementDecisionMessage(
+        current.id,
+        decision.evidenceHash,
+        decision.decision,
+        decision.totalTinybar,
+        decision.nonce,
+        decision.expiresAt,
+      ),
+      decision.signature,
+    );
+  } catch {
+    throw new BitebackError(
+      "INVALID_MERCHANT_SIGNATURE",
+      "The stored settlement authorization is invalid.",
+      409,
+    );
+  }
+  const expectedSigner = process.env.SOURCE_MERCHANT_SIGNER;
+  if (
+    !expectedSigner ||
+    getAddress(recoveredDecisionSigner) !== getAddress(decision.signer) ||
+    getAddress(recoveredDecisionSigner) !== getAddress(expectedSigner)
+  ) {
+    throw new BitebackError(
+      "INVALID_MERCHANT_SIGNATURE",
+      "The stored settlement authorization is not from the allowlisted merchant.",
       409,
     );
   }
@@ -708,38 +919,10 @@ async function settleIncident(incidentId: string): Promise<Payout> {
 
   const { hash: frozenRuleHash, ...frozenRuleFields } = current.evidence.rule;
   const frozenRule = frozenRuleFields as Rule;
-  if (!frozenRule.signature || !frozenRule.signer) {
-    throw new BitebackError(
-      "RULE_NOT_SIGNED",
-      "This merchant has not signed the frozen policy rule.",
-      409,
-    );
-  }
   if (hash(ruleWithoutSignature(frozenRule)) !== frozenRuleHash) {
     throw new BitebackError(
       "EVIDENCE_HASH_MISMATCH",
-      "The frozen rule does not match its signed hash.",
-      409,
-    );
-  }
-  let recoveredRuleSigner: string;
-  try {
-    recoveredRuleSigner = verifyMessage(
-      ruleSignatureMessage(frozenRule.id, frozenRuleHash),
-      frozenRule.signature,
-    );
-  } catch {
-    throw new BitebackError("INVALID_RULE_SIGNATURE", "The frozen rule signature is invalid.", 409);
-  }
-  const expectedSigner = process.env.SOURCE_MERCHANT_SIGNER;
-  if (
-    !expectedSigner ||
-    getAddress(recoveredRuleSigner) !== getAddress(frozenRule.signer) ||
-    getAddress(recoveredRuleSigner) !== getAddress(expectedSigner)
-  ) {
-    throw new BitebackError(
-      "INVALID_RULE_SIGNATURE",
-      "The frozen rule signer is not the allowlisted merchant.",
+      "The frozen rule does not match its compiled hash.",
       409,
     );
   }
@@ -767,7 +950,7 @@ async function settleIncident(incidentId: string): Promise<Payout> {
   if (!current.evidenceRootHash) {
     throw new BitebackError(
       "EVIDENCE_STORAGE_FAILED",
-      "Autonomous settlement requires evidence archived in 0G Storage.",
+      "Settlement requires evidence archived in 0G Storage.",
       409,
     );
   }
@@ -843,8 +1026,9 @@ app.onError((error, context) => {
   return context.json(response.body, response.status as 400);
 });
 
-app.get("/api/health", (context) =>
-  context.json({
+app.get("/api/health", (context) => {
+  const anomalyHeartbeat = anomalyMonitor.heartbeat();
+  return context.json({
     ok: true,
     service: "BITEBACK",
     version: "1.0.0",
@@ -852,10 +1036,12 @@ app.get("/api/health", (context) =>
       graph: Boolean(process.env.PINAX_JWT),
       zerog: Boolean(process.env.OG_ROUTER_BASE && process.env.OG_ROUTER_KEY),
       hedera: Boolean(process.env.HEDERA_BOND_ACCOUNT_ID && process.env.HCS_TOPIC_ID),
+      anomalies: anomalyMonitoringEnabled(),
+      anomalyHeartbeat: anomalyHeartbeat.status,
     },
     operatorAuth: Boolean(process.env.OPERATOR_TOKEN),
-  }),
-);
+  });
+});
 
 app.get("/api/config", async (context) => {
   const rule = await victimFinder.ensureRule();
@@ -876,6 +1062,212 @@ app.get("/api/config", async (context) => {
 
 app.get("/api/bond", async (context) => context.json(await getBondStatus()));
 
+app.get("/api/anomaly/chains", (context) =>
+  context.json(anomalyMonitor.chainStates()),
+);
+
+app.get("/api/anomaly/heartbeat", (context) =>
+  context.json(anomalyMonitor.heartbeat()),
+);
+
+app.get("/api/anomaly/benchmark", async (context) => {
+  const benchmark = await readAnnualBenchmark();
+  return benchmark
+    ? context.json(benchmark)
+    : context.json(
+        {
+          available: false,
+          error:
+            "Annual benchmark artifact unavailable. Run npm run anomaly:benchmark with Substreams credentials.",
+        },
+        404,
+      );
+});
+
+app.get("/api/anomaly/research", (context) =>
+  context.json({
+    sources: ANOMALY_RESEARCH_INDEX,
+    models: ANOMALY_MODEL_INDEX,
+    evaluation: {
+      mode: "prequential streaming",
+      primaryView: "precision-recall",
+      pointAdjustment: false,
+      latency: "first alert inside each official incident window",
+      falsePositiveReporting:
+        "unmatched episodes reported separately from confirmed false positives",
+    },
+  }),
+);
+
+app.get("/api/anomaly/chains/:id/metrics", (context) => {
+  const parsed = z
+    .object({
+      from: z.coerce.number().int().nonnegative().optional(),
+      to: z.coerce.number().int().nonnegative().optional(),
+    })
+    .safeParse(context.req.query());
+  if (!parsed.success) {
+    throw new BitebackError("INVALID_REQUEST", z.prettifyError(parsed.error));
+  }
+  return context.json(
+    anomalyMonitor.metrics(
+      context.req.param("id"),
+      parsed.data.from,
+      parsed.data.to,
+    ),
+  );
+});
+
+app.get("/api/anomalies", (context) => {
+  const parsed = z
+    .object({
+      chainId: z.string().optional(),
+      status: z.enum(["open", "acknowledged", "resolved"]).optional(),
+      severity: z.enum(["warning", "critical"]).optional(),
+      limit: z.coerce.number().int().min(1).max(500).optional(),
+    })
+    .safeParse(context.req.query());
+  if (!parsed.success) {
+    throw new BitebackError("INVALID_REQUEST", z.prettifyError(parsed.error));
+  }
+  return context.json({ alerts: anomalyMonitor.alerts(parsed.data) });
+});
+
+app.get("/api/anomalies/:id", (context) => {
+  const id = context.req.param("id");
+  return context.json({
+    ...anomalyMonitor.alert(id),
+    assessment: anomalyMonitor.assessment(id),
+    disputeReadiness: anomalyMonitor.disputeReadiness(
+      id,
+      context.req.query("wallet"),
+    ),
+  });
+});
+
+app.post("/api/anomaly/wallets/watch", async (context) => {
+  const input = await jsonInput(
+    context.req.raw,
+    z.object({
+      wallet: z.string(),
+      chainId: z.string(),
+      signature: z.string().min(130).max(132),
+    }),
+  );
+  let wallet: string;
+  let signer: string;
+  try {
+    wallet = getAddress(input.wallet);
+    signer = getAddress(
+      verifyMessage(
+        anomalyWatchMessage(wallet, input.chainId),
+        input.signature,
+      ),
+    );
+  } catch {
+    throw new BitebackError(
+      "ANOMALY_WATCH_SIGNATURE_INVALID",
+      "The wallet watch signature is invalid.",
+      401,
+    );
+  }
+  if (wallet !== signer) {
+    throw new BitebackError(
+      "ANOMALY_WATCH_SIGNATURE_INVALID",
+      "The wallet watch signature does not match the wallet.",
+      401,
+    );
+  }
+  return context.json(
+    {
+      watch: await anomalyMonitor.watchWallet(wallet, input.chainId),
+    },
+    201,
+  );
+});
+
+app.get("/api/anomaly/wallets/:address/notifications", (context) => {
+  let wallet: string;
+  try {
+    wallet = getAddress(context.req.param("address"));
+  } catch {
+    throw new BitebackError("INVALID_REQUEST", "Wallet address is invalid.");
+  }
+  const parsed = z
+    .object({
+      chainId: z.string().optional(),
+      limit: z.coerce.number().int().min(1).max(500).default(100),
+    })
+    .safeParse(context.req.query());
+  if (!parsed.success) {
+    throw new BitebackError("INVALID_REQUEST", z.prettifyError(parsed.error));
+  }
+  return context.json({
+    notifications: anomalyMonitor.walletNotifications(
+      wallet,
+      parsed.data.chainId,
+      parsed.data.limit,
+    ),
+  });
+});
+
+app.get("/api/anomalies/:id/dispute-readiness", (context) =>
+  context.json(
+    anomalyMonitor.disputeReadiness(
+      context.req.param("id"),
+      context.req.query("wallet"),
+    ),
+  ),
+);
+
+app.post("/api/anomalies/run", async (context) => {
+  requireOperator(context.req.header("authorization"));
+  const input = await jsonInput(
+    context.req.raw,
+    z.object({ chainId: z.string().optional() }),
+  );
+  const state = anomalyMonitor.chainStates();
+  if (
+    input.chainId &&
+    !state.chains.some(({ id }) => id === input.chainId)
+  ) {
+    throw new BitebackError("ANOMALY_CHAIN_NOT_FOUND", "Chain not found.", 404);
+  }
+  void anomalyMonitor.run(input.chainId).catch((error: unknown) => {
+    console.error("Anomaly monitor run failed:", error);
+  });
+  return context.json(state, 202);
+});
+
+app.post("/api/anomalies/:id/acknowledge", async (context) => {
+  requireOperator(context.req.header("authorization"));
+  const input = await jsonInput(
+    context.req.raw,
+    z.object({ note: z.string().trim().min(1).max(500).optional() }),
+  );
+  return context.json(
+    await anomalyMonitor.acknowledge(context.req.param("id"), input.note),
+  );
+});
+
+app.post("/api/anomalies/:id/resolve", async (context) => {
+  requireOperator(context.req.header("authorization"));
+  const input = await jsonInput(
+    context.req.raw,
+    z.object({
+      classification: z.enum(["expected", "confirmed"]),
+      note: z.string().trim().min(1).max(500),
+    }),
+  );
+  return context.json(
+    await anomalyMonitor.resolve(
+      context.req.param("id"),
+      input.classification,
+      input.note,
+    ),
+  );
+});
+
 app.get("/api/demo/live", (context) =>
   context.json({
     run: liveDemoRun ?? null,
@@ -892,6 +1284,7 @@ app.post("/api/demo/live", async (context) => {
     throw new BitebackError("DEMO_ALREADY_RUNNING", "A live demo is already running.", 409);
   }
   const id = cryptoRandomBytes(6).toString("hex");
+  liveDemoContext = undefined;
   liveDemoRun = {
     id,
     stage: "preparing",
@@ -913,6 +1306,50 @@ app.post("/api/demo/live", async (context) => {
     updateLiveDemo(id, {
       stage: "failed",
       message: "Live demo failed.",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+  return context.json({ run: liveDemoRun }, 202);
+});
+
+app.post("/api/demo/live/report", async (context) => {
+  requireOperator(context.req.header("authorization"));
+  if (!liveDemoRun || liveDemoRun.stage !== "report") {
+    throw new BitebackError("INVALID_REQUEST", "The live run is not awaiting Wallet A's report.", 409);
+  }
+  const id = liveDemoRun.id;
+  updateLiveDemo(id, {
+    stage: "reporting",
+    message: "Wallet A is signing the reported transaction hash.",
+  });
+  void continueLiveDemoAfterReport(id).catch((error: unknown) => {
+    updateLiveDemo(id, {
+      stage: "failed",
+      message: "The signed wallet report could not open a dispute.",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+  return context.json({ run: liveDemoRun }, 202);
+});
+
+app.post("/api/demo/live/authorize", async (context) => {
+  requireOperator(context.req.header("authorization"));
+  if (!liveDemoRun || liveDemoRun.stage !== "authorization") {
+    throw new BitebackError(
+      "INCIDENT_NOT_SETTLEABLE",
+      "The live incident is not awaiting merchant authorization.",
+      409,
+    );
+  }
+  const id = liveDemoRun.id;
+  updateLiveDemo(id, {
+    stage: "authorizing",
+    message: "Verifying ByteMeter's signed settlement authorization.",
+  });
+  void authorizeLiveDemoSettlement(id).catch((error: unknown) => {
+    updateLiveDemo(id, {
+      stage: "failed",
+      message: "Merchant-authorized settlement failed.",
       error: error instanceof Error ? error.message : String(error),
     });
   });
@@ -943,6 +1380,9 @@ app.post("/api/rules/compile", async (context) => {
   };
   const ruleHash = hash(candidate);
   await store.update((database) => {
+    const activeIndex = database.rules.findIndex(({ id }) => id === candidate.id);
+    if (activeIndex === -1) database.rules.push(candidate);
+    else database.rules[activeIndex] = candidate;
     database.pendingRules = database.pendingRules.filter(
       (pending) => pending.candidate.id !== candidate.id,
     );
@@ -962,10 +1402,7 @@ app.post("/api/rules/compile", async (context) => {
   });
 });
 
-/**
- * O merchant assina a regra. E este o consentimento que torna o settlement
- * automatico: acontece antes de existir qualquer incidente.
- */
+/** Assinatura opcional da política; não substitui a decisão sobre um incidente. */
 app.post("/api/rules/sign", async (context) => {
   requireOperator(context.req.header("authorization"));
   const input = await jsonInput(
@@ -1025,6 +1462,75 @@ app.post("/api/rules/sign", async (context) => {
     dedupeKey: `rule:${input.ruleHash}`,
   });
   return context.json({ rule: signed, ruleHash: input.ruleHash });
+});
+
+app.post("/api/report", async (context) => {
+  const input = await jsonInput(
+    context.req.raw,
+    z.object({
+      txHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+      signature: z.string().min(130).max(132),
+    }),
+  );
+  const resolved = await resolveDisputeReport(input.txHash, input.signature);
+  const result = await victimFinder.scanViolations(
+    resolved.rule.id,
+    resolved.from,
+    resolved.to,
+    undefined,
+    resolved.report,
+  );
+  const existingEvents = store.read().auditEvents;
+  if (
+    !existingEvents.some(
+      ({ event, incidentId, topicId }) =>
+        event === "DISPUTE_REPORTED" &&
+        incidentId === result.incident.id &&
+        topicId === process.env.HCS_TOPIC_ID,
+    )
+  ) {
+    await publishAudit(
+      store,
+      "DISPUTE_REPORTED",
+      "affected-wallet",
+      {
+        reporter: resolved.report.reporter,
+        reportedTxHash: resolved.report.txHash,
+        merchant: resolved.report.merchant,
+        token: resolved.report.token,
+      },
+      {
+        dedupeKey: `incident:${result.incident.id}:reported`,
+        incidentId: result.incident.id,
+      },
+    );
+  }
+  if (
+    !store
+      .read()
+      .auditEvents.some(
+        ({ event, incidentId, topicId }) =>
+          event === "INCIDENT_OPENED" &&
+          incidentId === result.incident.id &&
+          topicId === process.env.HCS_TOPIC_ID,
+      )
+  ) {
+    await publishAudit(
+      store,
+      "INCIDENT_OPENED",
+      "biteback-watcher",
+      {
+        evidenceHash: result.incident.evidenceHash,
+        victims: result.incident.violations.length,
+        triggeredBy: resolved.report.reporter,
+      },
+      {
+        dedupeKey: `incident:${result.incident.id}:opened`,
+        incidentId: result.incident.id,
+      },
+    );
+  }
+  return context.json({ ...result, report: resolved.report });
 });
 
 app.post("/api/scan", async (context) => {
@@ -1125,10 +1631,10 @@ app.post("/api/incidents/:id/freeze", async (context) => {
   requireOperator(context.req.header("authorization"));
   const id = context.req.param("id");
   const current = getIncident(store.read(), id);
-  const shouldSettle = context.req.query("settle") !== "false";
 
   if (
     current.status === "EVIDENCE_READY" ||
+    current.status === "APPROVED" ||
     current.status === "SETTLING" ||
     current.status === "SETTLEMENT_FAILED" ||
     current.status === "SETTLED"
@@ -1151,16 +1657,13 @@ app.post("/api/incidents/:id/freeze", async (context) => {
         },
       );
     }
-    const payout =
-      shouldSettle && current.evidence.rule.signature && current.status !== "SETTLED"
-        ? await settleIncident(id)
-        : current.payout;
     return context.json({
       incidentId: id,
       evidenceHash: current.evidenceHash,
       rootHash: current.evidenceRootHash ?? null,
-      payout: payout ?? null,
-      autonomous: Boolean(payout),
+      payout: current.payout ?? null,
+      authorizationRequired:
+        current.status === "EVIDENCE_READY" && current.decision?.decision !== "ACCEPT",
       ...loss,
     });
   }
@@ -1216,17 +1719,13 @@ app.post("/api/incidents/:id/freeze", async (context) => {
       incidentId: id,
     },
   );
-  const payout = shouldSettle && current.evidence.rule.signature
-    ? await settleIncident(id)
-    : undefined;
-
   return context.json({
     incidentId: id,
     evidenceHash: archived.evidenceHash,
     rootHash: archived.rootHash,
     storageError: archived.storageError,
-    payout: payout ?? null,
-    autonomous: Boolean(payout),
+    payout: null,
+    authorizationRequired: true,
     ...loss,
   });
 });
@@ -1256,14 +1755,7 @@ app.get("/api/incidents/:id/evidence", async (context) => {
   });
 });
 
-/**
- * Settlement automatico.
- *
- * Nao ha ACCEPT. O merchant integrado ja consentiu duas vezes, antes de existir
- * qualquer incidente: assinou a regra e aprovou a allowance. Aqui apenas
- * verificamos que esse consentimento continua valido e que os numeros batem —
- * e pagamos. Nenhuma destas verificacoes e um clique humano.
- */
+/** Executa apenas um settlement que o merchant aceitou depois de ver a prova. */
 app.post("/api/incidents/:id/settle", async (context) => {
   requireOperator(context.req.header("authorization"));
   const id = context.req.param("id");
@@ -1271,15 +1763,12 @@ app.post("/api/incidents/:id/settle", async (context) => {
   const payout = await settleIncident(id);
   return context.json({
     payout,
-    autonomous: true,
+    merchantAuthorized: true,
     idempotent: Boolean(before.payout),
   });
 });
 
-/**
- * Recibo de contestacao da via de disputa, onde nao ha regra assinada nem bond.
- * O merchant pode contestar e a decisao fica no audit trail.
- */
+/** O merchant aceita ou contesta o settlement depois de rever a prova congelada. */
 app.post("/api/incidents/:id/decision", async (context) => {
   requireOperator(context.req.header("authorization"));
   const id = context.req.param("id");
@@ -1287,7 +1776,7 @@ app.post("/api/incidents/:id/decision", async (context) => {
   const input = await jsonInput(
     context.req.raw,
     z.object({
-      decision: z.literal("REJECT"),
+      decision: z.enum(["ACCEPT", "REJECT"]),
       evidenceHash: z.string().optional(),
       counterEvidenceHash: z.string().optional(),
       reason: z.string().max(280).optional(),
@@ -1300,13 +1789,6 @@ app.post("/api/incidents/:id/decision", async (context) => {
   if (current.status !== "EVIDENCE_READY") {
     throw new BitebackError("INCIDENT_NOT_SETTLEABLE", "The evidence is not frozen.", 409);
   }
-  if (current.evidence.rule.signature || current.evidence.rule.signer) {
-    throw new BitebackError(
-      "INCIDENT_NOT_SETTLEABLE",
-      "An integrated merchant cannot reject a pre-authorized settlement.",
-      409,
-    );
-  }
   const evidenceHash = input.evidenceHash ?? current.evidenceHash;
   if (evidenceHash !== current.evidenceHash) {
     throw new BitebackError("EVIDENCE_HASH_MISMATCH", "Evidence hash does not match.", 409);
@@ -1318,7 +1800,14 @@ app.post("/api/incidents/:id/decision", async (context) => {
   if (expiresAt <= now || expiresAt > now + 300) {
     throw new BitebackError("INVALID_MERCHANT_SIGNATURE", "Merchant decision expired.", 401);
   }
-  const message = decisionMessage(id, evidenceHash, "REJECT", totalTinybar, nonce, expiresAt);
+  const message = settlementDecisionMessage(
+    id,
+    evidenceHash,
+    input.decision,
+    totalTinybar,
+    nonce,
+    expiresAt,
+  );
   const signature = input.signature;
   let recovered: string;
   try {
@@ -1335,10 +1824,12 @@ app.post("/api/incidents/:id/decision", async (context) => {
     throw new BitebackError("INVALID_MERCHANT_SIGNATURE", "Invalid merchant signature.", 401);
   }
   const decision: Decision = {
-    decision: "REJECT",
+    decision: input.decision,
     evidenceHash,
     totalTinybar,
     nonce,
+    expiresAt,
+    signer: getAddress(recovered),
     signature,
     decidedAt: new Date().toISOString(),
   };
@@ -1350,16 +1841,24 @@ app.post("/api/incidents/:id/decision", async (context) => {
     }
     const incident = getIncident(database, id);
     incident.decision = decision;
-    transition(incident, "REJECTED");
+    transition(incident, decision.decision === "ACCEPT" ? "APPROVED" : "REJECTED");
     database.usedNonces.push(`decision:${nonce}`);
   });
+  const accepted = decision.decision === "ACCEPT";
   await publishAudit(
     store,
-    "MERCHANT_REJECTED",
+    accepted ? "SETTLEMENT_AUTHORIZED" : "MERCHANT_REJECTED",
     "merchant-agent",
-    { evidenceHash, totalTinybar, counterEvidenceHash: input.counterEvidenceHash, reason: input.reason },
     {
-      dedupeKey: `decision:${id}:reject`,
+      decision: decision.decision,
+      signer: decision.signer,
+      evidenceHash,
+      totalTinybar,
+      counterEvidenceHash: input.counterEvidenceHash,
+      reason: input.reason,
+    },
+    {
+      dedupeKey: `decision:${id}:${decision.decision.toLowerCase()}`,
       incidentId: id,
     },
   );
@@ -1392,3 +1891,4 @@ const port = Number(process.env.PORT ?? "8403");
 serve({ fetch: app.fetch, port }, ({ port: activePort }) => {
   console.log(`BITEBACK listening on http://localhost:${activePort}`);
 });
+anomalyMonitor.start();

@@ -147,7 +147,8 @@ const windowStart = (firstBlockData?.timestamp ?? now) - 60;
 
 let env = await readFile(".env", "utf8");
 const updates: Record<string, string> = {
-  SOURCE_VICTIM_ADDRESSES: victims.map((v) => v.address.toLowerCase()).join(","),
+  SOURCE_VICTIM_ADDRESSES: "",
+  SOURCE_REPORTED_TX_HASH: hashes[1]!,
   SOURCE_WINDOW_START: String(windowStart),
   SOURCE_WINDOW_END: String(windowEnd),
   SOURCE_EFFECTIVE_FROM: String(windowStart),

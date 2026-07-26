@@ -72,7 +72,7 @@ export async function getBondStatus(): Promise<BondStatus> {
   if (!bondAccountId || !spenderAccountId) {
     throw new BitebackError(
       "BOND_INSUFFICIENT",
-      "Consumer Bond accounts are not configured.",
+      "Settlement reserve accounts are not configured.",
       503,
     );
   }
@@ -261,12 +261,12 @@ export async function executePayout(
   }
   const bond = await getBondStatus();
   if (BigInt(bond.balanceTinybar) < total) {
-    throw new BitebackError("BOND_INSUFFICIENT", "Consumer Bond balance is insufficient.", 409);
+    throw new BitebackError("BOND_INSUFFICIENT", "Settlement reserve balance is insufficient.", 409);
   }
   if (BigInt(bond.allowanceTinybar) < total) {
     throw new BitebackError(
       "ALLOWANCE_INSUFFICIENT",
-      "Consumer Bond allowance is insufficient.",
+      "Settlement reserve allowance is insufficient.",
       409,
     );
   }

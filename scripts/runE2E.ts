@@ -4,17 +4,19 @@
  *   npm run demo:run
  *
  *   0G Compute compila a política
- *   → merchant assina a regra          (consentimento, antes de haver incidente)
- *   → The Graph deteta as violações
+ *   → a carteira A assina o report de uma cobrança
+ *   → The Graph encontra todas as carteiras afetadas
  *   → cada carteira afetada assina a delegação
  *   → Evidence Pack sobe para 0G Storage e o root hash ancora no HCS
- *   → Hedera paga sozinha               (sem ACCEPT: a licença já tinha sido dada)
+ *   → merchant revê a prova e assina ACCEPT
+ *   → Hedera executa o settlement autorizado
  *
  * É idempotente até ao ponto onde já chegou: correr duas vezes não paga duas.
  */
 
 import { randomBytes } from "node:crypto";
 import { Wallet } from "ethers";
+import { disputeReportMessage, settlementDecisionMessage } from "../src/domain.js";
 
 const baseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 8403}`;
 const operator = process.env.OPERATOR_TOKEN;
@@ -57,25 +59,29 @@ console.log("regra :", JSON.stringify(compiled.candidate ?? compiled.rule));
 console.log("modelo:", compiled.model, "via", compiled.endpoint);
 console.log("hash  :", compiled.ruleHash);
 
-// ── 2. o merchant assina — é aqui que o consentimento acontece ──────────────
-step(2, "O merchant assina a regra (consentimento, antes de haver incidente)");
-const merchant = new Wallet(required("SOURCE_MERCHANT_PRIVATE_KEY"));
-const signature = await merchant.signMessage(compiled.signatureMessage);
-const signed = await api("/api/rules/sign", { ruleHash: compiled.ruleHash, signature });
-console.log("assinada por:", signed.rule.signer);
-
-// ── 3. The Graph deteta ────────────────────────────────────────────────────
-step(3, "The Graph deteta as violações em dados live");
-const scan = await api("/api/scan", {});
+// ── 2. uma carteira reporta; The Graph encontra o coletivo ─────────────────
+step(2, "Wallet A reporta uma cobrança; The Graph encontra as restantes");
+const reportedTxHash = required("SOURCE_REPORTED_TX_HASH");
+const reportingWallet = new Wallet(required("SOURCE_VICTIM_A_PRIVATE_KEY"));
+const reportSignature = await reportingWallet.signMessage(
+  disputeReportMessage(reportedTxHash),
+);
+console.log("reporter:", reportingWallet.address);
+console.log("tx      :", reportedTxHash);
+const scan = await api("/api/report", {
+  txHash: reportedTxHash,
+  signature: reportSignature,
+});
 const incident = scan.incident;
+console.log("assinatura da primeira wallet: verificada");
 console.log("live:", scan.live, "| bloco indexado:", scan.indexedBlock);
-console.log("carteiras afetadas:", incident.violations.length);
+console.log("1 reporter →", incident.violations.length, "carteiras afetadas");
 console.log("total a compensar :", incident.evidence.totals.payoutTinybar, "tinybar");
 console.log("incidente:", incident.id);
 
 // Se este incidente ja foi liquidado, nao ha nada a repetir: relata e sai.
 if (incident.payout) {
-  step(4, "Incidente ja liquidado");
+  step(3, "Incidente ja liquidado");
   console.log("transacao :", incident.payout.transactionId);
   console.log("total     :", incident.payout.totalTinybar, "tinybar");
   console.log("HashScan  :", incident.payout.explorerUrl);
@@ -88,8 +94,8 @@ if (incident.payout) {
   process.exit(0);
 }
 
-// ── 4. cada carteira afetada assina a delegação ────────────────────────────
-step(4, "Cada carteira afetada assina a sua delegação");
+// ── 3. cada carteira afetada assina a delegação ────────────────────────────
+step(3, "Cada carteira afetada assina a sua delegação");
 const expiresAt = Math.floor(Date.now() / 1000) + 1800;
 for (const [index, violation] of incident.violations.entries()) {
   const label = "ABC"[index];
@@ -130,14 +136,39 @@ for (const [index, violation] of incident.violations.entries()) {
   }
 }
 
-// ── 5. congelar e arquivar em 0G Storage ───────────────────────────────────
-step(5, "Evidence Pack → 0G Storage, root hash → HCS");
+// ── 4. congelar e arquivar em 0G Storage ───────────────────────────────────
+step(4, "Evidence Pack → 0G Storage, root hash → HCS");
 const frozen = await api(`/api/incidents/${incident.id}/freeze`, {});
 console.log("evidenceHash:", frozen.evidenceHash);
 console.log("rootHash 0G :", frozen.rootHash ?? `— (${frozen.storageError ?? "não arquivado"})`);
 
-// ── 6. pagar, sem pedir licença ────────────────────────────────────────────
-step(6, "Hedera paga automaticamente (sem ACCEPT)");
+// ── 5. o merchant revê e autoriza este settlement ──────────────────────────
+step(5, "O merchant autoriza manualmente este settlement");
+const merchant = new Wallet(required("SOURCE_MERCHANT_PRIVATE_KEY"));
+const decisionNonce = randomBytes(16).toString("hex");
+const decisionExpiresAt = Math.floor(Date.now() / 1000) + 300;
+const decisionSignature = await merchant.signMessage(
+  settlementDecisionMessage(
+    incident.id,
+    frozen.evidenceHash,
+    "ACCEPT",
+    incident.evidence.totals.payoutTinybar,
+    decisionNonce,
+    decisionExpiresAt,
+  ),
+);
+const authorized = await api(`/api/incidents/${incident.id}/decision`, {
+  decision: "ACCEPT",
+  evidenceHash: frozen.evidenceHash,
+  nonce: decisionNonce,
+  expiresAt: decisionExpiresAt,
+  signature: decisionSignature,
+});
+console.log("decisão  :", authorized.decision.decision);
+console.log("assinada :", authorized.decision.signer);
+
+// ── 6. executar o settlement autorizado ────────────────────────────────────
+step(6, "Hedera executa o settlement autorizado");
 const settled = await api(`/api/incidents/${incident.id}/settle`, {});
 const payout = settled.payout;
 console.log("transação :", payout.transactionId);

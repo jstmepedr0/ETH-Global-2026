@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package biteback.anomaly.v1;
+
+message BlockMetrics {
+  uint64 block_number = 1;
+  string block_hash = 2;
+  int64 timestamp = 3;
+  uint64 transaction_count = 4;
+  uint64 failed_transaction_count = 5;
+  uint64 unique_sender_count = 6;
+  string gas_used = 7;
+  string gas_limit = 8;
+  string total_fees_wei = 9;
+  uint64 fee_transaction_count = 10;
+  string fee_gas_used = 11;
+}

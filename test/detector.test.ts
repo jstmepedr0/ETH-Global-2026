@@ -4,6 +4,8 @@ import {
   BitebackError,
   buildIncident,
   detectPolicyViolations,
+  disputeReportMessage,
+  settlementDecisionMessage,
   transition,
   type GraphSource,
   type Payment,
@@ -220,6 +222,85 @@ test("an unsigned compiled rule creates collective evidence but no financial con
     () => transition(incident, "SETTLING"),
     (error) => error instanceof BitebackError && error.code === "INCIDENT_NOT_SETTLEABLE",
   );
+});
+
+test("settlement requires an explicit post-evidence merchant approval", () => {
+  const payments = [payment("1", 100), payment("2", 200)];
+  const incident = buildIncident(
+    rule,
+    {
+      provider: "the-graph-substreams",
+      endpoint: "https://graph.test",
+      network: "base-sepolia",
+      indexedBlock: 200,
+      queriedAt: "2026-07-25T00:00:00.000Z",
+    },
+    detectPolicyViolations(rule, payments),
+  );
+  transition(incident, "CLAIMING");
+  transition(incident, "EVIDENCE_READY");
+  assert.throws(
+    () => transition(incident, "SETTLING"),
+    (error) => error instanceof BitebackError && error.code === "INCIDENT_NOT_SETTLEABLE",
+  );
+  transition(incident, "APPROVED");
+  transition(incident, "SETTLING");
+  assert.equal(incident.status, "SETTLING");
+});
+
+test("merchant decision signs the exact incident, evidence and payout", () => {
+  const message = settlementDecisionMessage(
+    "incident-1",
+    "sha256:evidence",
+    "ACCEPT",
+    "600000000",
+    "nonce-1",
+    123,
+  );
+  assert.equal(
+    message,
+    [
+      "BITEBACK_DECISION_V1",
+      "incidentId=incident-1",
+      "evidenceHash=sha256:evidence",
+      "decision=ACCEPT",
+      "totalTinybar=600000000",
+      "nonce=nonce-1",
+      "expiresAt=123",
+    ].join("\n"),
+  );
+});
+
+test("one signed transaction report is preserved as the collective search trigger", () => {
+  const payments = [payment("report-1", 100), payment("report-2", 101)];
+  const violations = detectPolicyViolations(rule, payments);
+  const graphSource: GraphSource = {
+    provider: "the-graph-substreams",
+    endpoint: "https://graph.test",
+    network: "base-sepolia",
+    indexedBlock: 101,
+    queriedAt: "2026-07-25T00:00:00.000Z",
+  };
+  const trigger = {
+    version: 1 as const,
+    reporter: "0xvictim",
+    txHash: payments[1]!.txHash,
+    merchant: rule.merchant,
+    token: rule.token,
+    timestamp: payments[1]!.timestamp,
+    signature: "0xsigned",
+    signedAt: "2026-07-25T00:00:00.000Z",
+  };
+  const incident = buildIncident(rule, graphSource, violations, trigger);
+  const withoutTrigger = buildIncident(rule, graphSource, violations);
+
+  assert.equal(
+    disputeReportMessage(trigger.txHash),
+    `BITEBACK_REPORT_V1\ntxHash=${trigger.txHash}`,
+  );
+  assert.deepEqual(incident.evidence.trigger, trigger);
+  assert.equal(incident.id, withoutTrigger.id);
+  assert.notEqual(incident.evidenceHash, withoutTrigger.evidenceHash);
 });
 
 test("zero deterministic violations cannot create a public dispute", () => {

@@ -1,0 +1,19 @@
+[package]
+name = "biteback-anomaly-metrics"
+version = "1.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hex = "0.4"
+num-bigint = "0.4"
+prost = "0.13"
+substreams = "0.7"
+substreams-ethereum = "0.11"
+
+[profile.release]
+lto = true
+opt-level = "z"
+strip = "debuginfo"

@@ -27,6 +27,8 @@
     "setup:demo": "node --env-file=.env --import tsx scripts/setupDemo.ts",
     "policy:sign": "node --env-file=.env --import tsx scripts/signPolicy.ts",
     "claims:join": "node --env-file=.env --import tsx scripts/joinClaims.ts",
+    "anomaly:benchmark": "node --env-file=.env --import tsx scripts/benchmarkAnomalies.ts",
+    "anomaly:validate": "node --env-file=.env --import tsx scripts/validateAnomalies.ts",
     "test": "node --import tsx --test test/*.test.ts",
     "check": "npm run build && npm test",
     "evidence:verify": "node --env-file=.env --import tsx scripts/verifyEvidence.ts",

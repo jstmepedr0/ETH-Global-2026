@@ -551,6 +551,338 @@
       .policy-note { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 16px 0 0; }
       .policy-note b { color: var(--paper); font-family: var(--mono); font-weight: 500; }
 
+      /* ---------------- anomalies ---------------- */
+      .anomaly { grid-column: span 12; }
+      .anomaly-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .anomaly-toolbar select {
+        min-width: 190px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        background: rgba(0, 0, 0, 0.35);
+        color: var(--paper);
+        padding: 10px 34px 10px 12px;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .anomaly-toolbar .note { margin-left: auto; }
+      .heartbeat-rail {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: 48px;
+        padding: 9px 20px;
+        border-bottom: 1px solid var(--line);
+        overflow-x: auto;
+      }
+      .heartbeat-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: max-content;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .heartbeat-summary i, .heartbeat-chain i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--dim);
+        flex: none;
+      }
+      .heartbeat-summary.healthy i, .heartbeat-chain.healthy i {
+        background: var(--acid);
+        box-shadow: 0 0 0 4px rgba(195, 255, 33, 0.1);
+        animation: heartbeat 1.8s ease-out infinite;
+      }
+      .heartbeat-summary.degraded i, .heartbeat-chain.degraded i { background: var(--amber); }
+      .heartbeat-summary.unhealthy i,
+      .heartbeat-chain.stalled i,
+      .heartbeat-chain.down i { background: var(--fault); }
+      .heartbeat-chains { display: flex; align-items: center; gap: 8px; min-width: max-content; }
+      .heartbeat-chain {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding-left: 12px;
+        border-left: 1px solid var(--line-2);
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .heartbeat-chain b { color: var(--paper); font-weight: 500; }
+      @keyframes heartbeat {
+        0% { box-shadow: 0 0 0 0 rgba(195, 255, 33, 0.28); }
+        70%, 100% { box-shadow: 0 0 0 6px rgba(195, 255, 33, 0); }
+      }
+      .btn.compact { padding: 9px 13px; border-radius: 10px; font-size: 12px; }
+      .anomaly-grid { display: grid; grid-template-columns: 1.25fr 0.75fr; min-height: 300px; }
+      .anomaly-workspace { padding: 20px; border-right: 1px solid var(--line); min-width: 0; }
+      .anomaly-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+      .anomaly-metric { border-top: 1px solid var(--line-2); padding-top: 10px; min-width: 0; }
+      .anomaly-metric span {
+        display: block;
+        font-family: var(--mono);
+        color: var(--dim);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .anomaly-metric b {
+        display: block;
+        margin-top: 4px;
+        font-family: var(--mono);
+        font-size: 18px;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+      .anomaly-chart { margin-top: 22px; }
+      .anomaly-chart-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+      .anomaly-chart-head b { font-size: 13px; font-weight: 600; }
+      .anomaly-chart-head span { margin-left: auto; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+      .anomaly-chart svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background:
+          linear-gradient(180deg, rgba(195, 255, 33, 0.025), transparent 45%),
+          rgba(0, 0, 0, 0.18);
+      }
+      .anomaly-alerts { min-width: 0; }
+      .anomaly-alerts-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .anomaly-alerts-head b { font-size: 13px; font-weight: 600; }
+      .alert-row { padding: 15px 18px; border-bottom: 1px solid var(--line); }
+      .alert-row:last-child { border-bottom: 0; }
+      .alert-top { display: flex; align-items: center; gap: 8px; }
+      .alert-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); flex: none; }
+      .alert-row.critical .alert-dot { background: var(--fault); box-shadow: 0 0 0 4px var(--fault-dim); }
+      .alert-top b { font-family: var(--mono); font-size: 10.5px; font-weight: 500; text-transform: uppercase; }
+      .alert-top time { margin-left: auto; font-family: var(--mono); font-size: 9.5px; color: var(--dim); }
+      .alert-copy { margin: 8px 0 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .alert-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+      .alert-actions button {
+        border: 1px solid var(--line-2);
+        border-radius: 8px;
+        padding: 6px 8px;
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 9px;
+        cursor: pointer;
+      }
+      .alert-actions button:hover { color: var(--paper); background: rgba(255, 255, 255, 0.06); }
+      .wallet-watch {
+        display: grid;
+        grid-template-columns: 0.7fr 1.3fr;
+        gap: 20px;
+        padding: 18px 20px;
+        border-top: 1px solid var(--line);
+      }
+      .wallet-watch-copy b { display: block; font-size: 13px; }
+      .wallet-watch-copy p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .wallet-watch-controls { display: flex; gap: 8px; }
+      .wallet-watch-controls input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.35);
+        color: var(--paper);
+        padding: 10px 12px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+      }
+      .wallet-notifications { margin-top: 10px; }
+      .wallet-notification {
+        display: flex;
+        gap: 10px;
+        padding: 9px 0;
+        border-top: 1px solid var(--line);
+      }
+      .wallet-notification i { margin-top: 5px; }
+      .wallet-notification b { display: block; font-family: var(--mono); font-size: 10px; font-weight: 500; }
+      .wallet-notification p { margin: 3px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+      .benchmark-audit { border-top: 1px solid var(--line-2); }
+      .benchmark-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 17px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .benchmark-head b { font-size: 13px; font-weight: 600; }
+      .benchmark-head span {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        color: var(--dim);
+      }
+      .benchmark-head .pill { margin-left: auto; color: var(--acid); }
+      .benchmark-timelines { padding: 16px 20px 20px; border-bottom: 1px solid var(--line); }
+      .benchmark-timelines svg,
+      .benchmark-plot svg,
+      .benchmark-event-chart svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+      .benchmark-timelines svg,
+      .benchmark-event-chart svg {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background:
+          linear-gradient(180deg, rgba(195, 255, 33, 0.02), transparent 45%),
+          rgba(0, 0, 0, 0.16);
+      }
+      .benchmark-key {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 8px;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--dim);
+      }
+      .benchmark-key i {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 5px;
+        border-radius: 2px;
+        background: var(--acid);
+      }
+      .benchmark-key span:nth-child(2) i { background: var(--amber); }
+      .benchmark-key span:nth-child(3) i { background: var(--fault); border-radius: 50%; }
+      .benchmark-detail {
+        display: grid;
+        grid-template-columns: 1.4fr 0.6fr;
+        border-bottom: 1px solid var(--line);
+      }
+      .benchmark-event { min-width: 0; padding: 18px 20px; border-right: 1px solid var(--line); }
+      .benchmark-event-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+      .benchmark-event-head b,
+      .benchmark-plot-head b { font-size: 12px; font-weight: 600; }
+      .benchmark-event-head select {
+        margin-left: auto;
+        max-width: 62%;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: rgba(0, 0, 0, 0.35);
+        color: var(--paper);
+        padding: 8px 10px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+      }
+      .benchmark-side { display: grid; grid-template-rows: 1fr 1fr; min-width: 0; }
+      .benchmark-plot { min-width: 0; padding: 18px 20px; }
+      .benchmark-plot + .benchmark-plot { border-top: 1px solid var(--line); }
+      .benchmark-plot-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .benchmark-plot-head span {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 8.5px;
+        color: var(--dim);
+      }
+      .benchmark-results { overflow-x: auto; }
+      .benchmark-results table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+      .benchmark-results th,
+      .benchmark-results td {
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .benchmark-results th {
+        color: var(--dim);
+        font-size: 8.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+      .benchmark-results th:first-child,
+      .benchmark-results td:first-child { text-align: left; }
+      .benchmark-results tr:last-child td { border-bottom: 0; }
+      .research-index { border-top: 1px solid var(--line-2); }
+      .research-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 17px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .research-head div { min-width: 0; }
+      .research-head b { display: block; margin-top: 3px; font-size: 13px; font-weight: 600; }
+      .research-head .pill { margin-left: auto; color: var(--acid); }
+      .model-index {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--line);
+      }
+      .model-index article { min-width: 0; padding: 15px 20px; }
+      .model-index article + article { border-left: 1px solid var(--line); }
+      .model-index span,
+      .research-row > span {
+        display: block;
+        font-family: var(--mono);
+        font-size: 8.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+      .model-index b { display: block; margin: 6px 0; font-family: var(--mono); font-size: 10px; font-weight: 500; color: var(--acid); }
+      .model-index p,
+      .research-row p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .model-index small { display: block; margin-top: 7px; color: var(--dim); font-size: 10px; line-height: 1.45; }
+      .research-row {
+        display: grid;
+        grid-template-columns: 34px minmax(190px, 0.75fr) minmax(260px, 1.25fr);
+        gap: 18px;
+        align-items: start;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      .research-row:last-child { border-bottom: 0; }
+      .research-number { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+      .research-row a {
+        display: block;
+        margin: 5px 0 3px;
+        color: var(--paper);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        text-decoration-color: rgba(195, 255, 33, 0.45);
+        text-underline-offset: 3px;
+      }
+      .research-row a:hover { color: var(--acid); }
+      .research-citation { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+
       footer {
         display: flex;
         align-items: center;
@@ -581,9 +913,15 @@
         backdrop-filter: blur(18px);
         box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.95);
         transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+        visibility: hidden;
+        pointer-events: none;
         z-index: 40;
       }
-      .runner.show { transform: translate(-50%, 0); }
+      .runner.show {
+        transform: translate(-50%, 0);
+        visibility: visible;
+        pointer-events: auto;
+      }
       .runner-head { display: flex; align-items: center; gap: 10px; }
       .runner-head b { font-size: 13px; font-weight: 600; }
       .runner-head span { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--acid); }
@@ -613,8 +951,14 @@
 
       /* ---------------- responsive ---------------- */
       @media (max-width: 1100px) {
-        .hero, .live, .ledger, .audit, .policy { grid-column: span 12; }
+        .hero, .live, .ledger, .audit, .policy, .anomaly { grid-column: span 12; }
         .policy-grid { grid-template-columns: 1fr; }
+        .anomaly-grid { grid-template-columns: 1fr; }
+        .anomaly-workspace { border-right: 0; border-bottom: 1px solid var(--line); }
+        .benchmark-detail { grid-template-columns: 1fr; }
+        .benchmark-event { border-right: 0; border-bottom: 1px solid var(--line); }
+        .benchmark-side { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+        .benchmark-plot + .benchmark-plot { border-top: 0; border-left: 1px solid var(--line); }
       }
       @media (max-width: 780px) {
         body { padding: 10px; }
@@ -639,6 +983,27 @@
         .lrow > span:first-child { display: none; }
         .lrow b { grid-column: 1 / -1; }
         .policy-controls { flex-direction: column; align-items: stretch; }
+        .anomaly-toolbar { align-items: stretch; flex-direction: column; }
+        .anomaly-toolbar select { width: 100%; }
+        .anomaly-toolbar .note { margin-left: 0; }
+        .heartbeat-rail { padding: 10px 16px; }
+        .anomaly-metrics { grid-template-columns: repeat(2, 1fr); }
+        .wallet-watch { grid-template-columns: 1fr; padding: 16px; }
+        .wallet-watch-controls { flex-direction: column; }
+        .benchmark-head { align-items: flex-start; flex-wrap: wrap; }
+        .benchmark-head .pill { margin-left: 0; }
+        .benchmark-detail, .benchmark-side { display: block; }
+        .benchmark-plot + .benchmark-plot { border-left: 0; border-top: 1px solid var(--line); }
+        .benchmark-event-head { align-items: stretch; flex-direction: column; }
+        .benchmark-event-head select { margin-left: 0; max-width: none; width: 100%; }
+        .benchmark-timelines { overflow-x: auto; }
+        .benchmark-timelines svg { min-width: 720px; }
+        .research-head { align-items: flex-start; flex-wrap: wrap; }
+        .research-head .pill { margin-left: 0; }
+        .model-index { grid-template-columns: 1fr; }
+        .model-index article + article { border-left: 0; border-top: 1px solid var(--line); }
+        .research-row { grid-template-columns: 28px 1fr; gap: 10px; padding: 14px 16px; }
+        .research-row > p { grid-column: 2; }
         .btn { justify-content: center; }
         footer { flex-wrap: wrap; gap: 8px; padding: 14px 16px; }
       }
@@ -684,6 +1049,7 @@
           <a href="#live">Live run</a>
           <a href="#evidence">Evidence</a>
           <a href="#audit">Audit</a>
+          <a href="#anomalies">Anomalies</a>
           <a href="#policy">Policy</a>
         </nav>
         <div class="bondchip">
@@ -691,7 +1057,7 @@
             <path d="M12 2.5 20 6v6c0 5-3.4 8.3-8 9.5C7.4 20.3 4 17 4 12V6l8-3.5Z" />
             <path d="M9 12l2.2 2.2L15.5 10" />
           </svg>
-          <div><span>Consumer bond</span><b id="bondText">— HBAR · CHECKING</b></div>
+          <div><span>Settlement reserve</span><b id="bondText">— HBAR · CHECKING</b></div>
         </div>
       </div>
 
@@ -699,7 +1065,7 @@
         <section class="card hero" id="overview">
           <div class="hero-pills">
             <span class="pill" id="statusPill"><i class="dot"></i><span id="statusPillText">Checking</span></span>
-            <span class="pill" id="policyPill">Signed policy · <span id="policyLimit">— / day</span></span>
+            <span class="pill" id="policyPill">Compiled policy · <span id="policyLimit">— / day</span></span>
             <span class="pill">Case <span id="caseId">loading…</span></span>
           </div>
           <div class="amount"><span id="heroAmount">0</span><small id="heroUnit">TX</small></div>
@@ -713,8 +1079,8 @@
               <span>One user reports once → BITEBACK finds the group and calculates the total loss.</span>
             </div>
             <div class="path">
-              <b>02 · Integrated upgrade</b>
-              <span>The protocol handles one verified case—or settles every wallet atomically.</span>
+              <b>02 · Manual resolution</b>
+              <span>The protocol reviews one verified case, then contests or authorizes settlement.</span>
             </div>
           </div>
 
@@ -732,22 +1098,27 @@
                   <path d="M2 1.4v9.2c0 .5.5.8 1 .5l7.4-4.6a.6.6 0 0 0 0-1L3 .9c-.5-.3-1 0-1 .5Z" />
                 </svg>
               </span>
-              <span id="runLabel">Start live incident</span>
+              <span id="runLabel">Create live charges</span>
             </button>
             <a class="btn ghost" id="openPayout" href="#" target="_blank" rel="noreferrer" hidden>Open payout ↗</a>
-            <span class="note">live proof of the integrated upgrade</span>
+            <span class="note">live proof of a merchant-authorized dispute settlement</span>
           </div>
         </section>
 
         <section class="card live" id="live">
           <div class="card-head">
-            <h2>Integrated upgrade · live proof</h2>
+            <h2>Dispute path · live proof</h2>
             <span class="pill" id="livePhasePill">Idle</span>
           </div>
           <div class="steps">
             <div class="step" data-stage="policy">
               <div class="bullet"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#check" /></svg></div>
               <div><b>0G Compute · compiled policy</b><span id="stepPolicyDetail">reading signed upgrade rule</span></div>
+              <div class="tag" data-tag>—</div>
+            </div>
+            <div class="step" data-stage="report">
+              <div class="bullet"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#check" /></svg></div>
+              <div><b>Wallet A · signed report</b><span id="stepReportDetail">no transaction reported</span></div>
               <div class="tag" data-tag>—</div>
             </div>
             <div class="step" data-stage="graph">
@@ -760,9 +1131,14 @@
               <div><b>0G Storage · evidence</b><span id="stepEvidenceDetail">nothing archived yet</span></div>
               <div class="tag" data-tag>—</div>
             </div>
+            <div class="step" data-stage="authorization">
+              <div class="bullet"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#check" /></svg></div>
+              <div><b>Merchant · manual decision</b><span id="stepAuthorizationDetail">waiting for evidence</span></div>
+              <div class="tag" data-tag>—</div>
+            </div>
             <div class="step" data-stage="refund">
               <div class="bullet"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#check" /></svg></div>
-              <div><b>Hedera · atomic payout</b><span id="stepRefundDetail">bond + allowance + HCS</span></div>
+              <div><b>Hedera · authorized payout</b><span id="stepRefundDetail">merchant approval + HCS</span></div>
               <div class="tag" data-tag>—</div>
             </div>
           </div>
@@ -790,6 +1166,109 @@
           <div class="tl" id="timelineRows"><p class="empty">Reading Mirror Node…</p></div>
         </section>
 
+        <section class="card anomaly" id="anomalies">
+          <div class="card-head">
+            <h2>On-chain anomalies</h2>
+            <span class="pill" id="anomalyPill"><i class="dot"></i><span>Checking</span></span>
+          </div>
+          <div class="anomaly-toolbar">
+            <select id="anomalyChain" aria-label="Monitored chain"></select>
+            <button class="btn ghost compact" id="anomalyRun">Run monitor</button>
+            <span class="note" id="anomalySource">30-day Bayesian baseline · 5-minute buckets</span>
+          </div>
+          <div class="heartbeat-rail" aria-live="polite">
+            <div class="heartbeat-summary unknown" id="anomalyHeartbeat">
+              <i></i><span>Heartbeat checking</span>
+            </div>
+            <div class="heartbeat-chains" id="heartbeatChains"></div>
+          </div>
+          <div class="anomaly-grid">
+            <div class="anomaly-workspace">
+              <div class="anomaly-metrics" id="anomalyMetrics">
+                <p class="empty">Reading chain metrics…</p>
+              </div>
+              <div class="anomaly-chart">
+                <div class="anomaly-chart-head">
+                  <b>Transaction throughput</b>
+                  <span>TPS · latest 4 hours · 99% predictive band</span>
+                </div>
+                <div id="anomalyChart"></div>
+              </div>
+            </div>
+            <div class="anomaly-alerts">
+              <div class="anomaly-alerts-head">
+                <b>Alert episodes</b>
+                <span class="pill" id="anomalyAlertCount">0 open</span>
+              </div>
+              <div id="anomalyAlerts"><p class="empty">No anomaly alerts.</p></div>
+            </div>
+          </div>
+          <div class="benchmark-audit">
+            <div class="benchmark-head">
+              <b>One-year model audit</b>
+              <span>2025-07-26 → 2026-07-26 · prequential · no point adjustment</span>
+              <span class="pill" id="benchmarkState">Loading artifact</span>
+            </div>
+            <div class="benchmark-timelines" id="benchmarkTimelines">
+              <p class="empty">Reading annual benchmark…</p>
+            </div>
+            <div class="benchmark-detail">
+              <div class="benchmark-event">
+                <div class="benchmark-event-head">
+                  <b>Point-in-time incident detail</b>
+                  <select id="benchmarkEvent" aria-label="Benchmark incident"></select>
+                </div>
+                <div class="benchmark-event-chart" id="benchmarkEventChart"></div>
+              </div>
+              <div class="benchmark-side">
+                <div class="benchmark-plot">
+                  <div class="benchmark-plot-head">
+                    <b>Precision–recall</b><span>event-level proxy</span>
+                  </div>
+                  <div id="benchmarkPrecisionRecall"></div>
+                </div>
+                <div class="benchmark-plot">
+                  <div class="benchmark-plot-head">
+                    <b>Calibration</b><span>nominal → empirical</span>
+                  </div>
+                  <div id="benchmarkCalibration"></div>
+                </div>
+              </div>
+            </div>
+            <div class="benchmark-results" id="benchmarkResults"></div>
+          </div>
+          <div class="research-index" id="modelResearch">
+            <div class="research-head">
+              <div>
+                <span class="eyebrow">Research and model research</span>
+                <b>Evaluation choices mapped to implementation</b>
+              </div>
+              <span class="pill" id="researchState">Loading index</span>
+            </div>
+            <div class="model-index" id="modelIndex">
+              <p class="empty">Reading model index…</p>
+            </div>
+            <div id="researchIndex">
+              <p class="empty">Reading research sources…</p>
+            </div>
+          </div>
+          <div class="wallet-watch">
+            <div class="wallet-watch-copy">
+              <b>Wallet warnings</b>
+              <p>Sign once to receive chain-health warnings. Alerts never create disputes or authorize funds.</p>
+            </div>
+            <div>
+              <div class="wallet-watch-controls">
+                <input id="anomalyWallet" type="text" readonly placeholder="No connected wallet watched" />
+                <button class="btn ghost compact" id="anomalyWatch">Watch connected wallet</button>
+              </div>
+              <div class="wallet-notifications" id="anomalyNotifications" aria-live="polite">
+                <p class="empty">Connect a wallet to receive warnings for the selected chain.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="card policy" id="policy">
           <div class="card-head">
             <h2>Policy compiler</h2>
@@ -808,7 +1287,7 @@
               </div>
             </div>
             <div>
-              <span class="field">Merchant consent</span>
+              <span class="field">Compiled dispute rule</span>
               <div class="kv">
                 <div><span>Rule status</span><b id="policyState">READING</b></div>
                 <div><span>Compiler</span><b id="policyModel">—</b></div>
@@ -816,9 +1295,8 @@
                 <div><span>Rule hash</span><b id="compiledHash">—</b></div>
               </div>
               <p class="policy-note" id="policyNote">
-                0G writes the deterministic rule. The merchant wallet signs its exact hash before any incident exists.
+                0G compiles the published terms. The merchant accepts or rejects only after reviewing the frozen evidence.
               </p>
-              <button class="btn primary" id="signPolicy" style="margin-top: 14px" hidden>Sign with merchant wallet</button>
             </div>
           </div>
         </section>
@@ -835,7 +1313,7 @@
     <aside class="runner" id="runner" aria-live="polite">
       <div class="runner-head">
         <b>Live incident runner</b>
-        <span id="runnerCount">01 / 09</span>
+        <span id="runnerCount">01 / 13</span>
       </div>
       <div class="runner-message" id="runnerMessage">Waiting to create a fresh testnet incident.</div>
       <div class="runner-progress"><i id="runnerProgress"></i></div>
@@ -843,7 +1321,7 @@
     <div class="toast" id="toast" role="status"></div>
 
     <script type="module">
-      const stageOrder = ["policy", "graph", "evidence", "refund"];
+      const stageOrder = ["policy", "report", "graph", "evidence", "authorization", "refund"];
       const elements = Object.fromEntries(
         [
           "networkPill",
@@ -869,8 +1347,10 @@
           "openPayout",
           "livePhasePill",
           "stepPolicyDetail",
+          "stepReportDetail",
           "stepGraphDetail",
           "stepEvidenceDetail",
+          "stepAuthorizationDetail",
           "stepRefundDetail",
           "liveBody",
           "ledgerRows",
@@ -885,7 +1365,29 @@
           "compiledLimit",
           "compiledHash",
           "policyNote",
-          "signPolicy",
+          "anomalyPill",
+          "anomalyChain",
+          "anomalyRun",
+          "anomalySource",
+          "anomalyHeartbeat",
+          "heartbeatChains",
+          "anomalyMetrics",
+          "anomalyChart",
+          "anomalyAlertCount",
+          "anomalyAlerts",
+          "anomalyWallet",
+          "anomalyWatch",
+          "anomalyNotifications",
+          "benchmarkState",
+          "benchmarkTimelines",
+          "benchmarkEvent",
+          "benchmarkEventChart",
+          "benchmarkPrecisionRecall",
+          "benchmarkCalibration",
+          "benchmarkResults",
+          "researchState",
+          "modelIndex",
+          "researchIndex",
           "runner",
           "runnerCount",
           "runnerMessage",
@@ -896,9 +1398,10 @@
 
       let config;
       let incident;
-      let pendingPolicy;
       let liveStage = "ready";
       let livePollTimer;
+      let anomalyRefreshTimer;
+      let watchedWallet = sessionStorage.getItem("biteback:anomaly-wallet") || "";
 
       const PLAY_ICON = `<svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor" style="display:block"><path d="M2 1.4v9.2c0 .5.5.8 1 .5l7.4-4.6a.6.6 0 0 0 0-1L3 .9c-.5-.3-1 0-1 .5Z"/></svg>`;
       const SPINNER_ICON = `<svg class="spin" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:block"><path d="M8 1.6a6.4 6.4 0 1 0 6.4 6.4" /></svg>`;
@@ -965,7 +1468,7 @@
         elements.bondText.textContent = `${balance} HBAR · ${bond.protected ? "PROTECTED" : "ATTENTION"}`;
         elements.bondText.style.color = bond.protected ? "" : "var(--fault)";
         if (liveStage === "ready") {
-          elements.stepRefundDetail.textContent = `${balance} HBAR bond · ${allowance} allowance`;
+          elements.stepRefundDetail.textContent = `${balance} HBAR reserve · ${allowance} execution allowance`;
         }
       }
 
@@ -977,14 +1480,555 @@
         elements.compiledHash.textContent = ruleHash ? short(ruleHash, 8) : "NOT COMPILED";
         elements.policyModel.textContent =
           rule?.compilation?.model ?? rule?.compiledBy ?? "NOT COMPILED";
-        elements.policyState.textContent = rule?.signature ? "SIGNED + ACTIVE" : "UNSIGNED";
-        elements.policyState.className = rule?.signature ? "ok" : "";
-        elements.stepPolicyDetail.textContent = rule?.signature
-          ? `merchant signed ${short(ruleHash, 6)}`
-          : "rule is not signed yet";
-        elements.policyNote.innerHTML = rule?.signature
-          ? `Consent recovered to <b>${escapeHtml(short(rule.signer, 8))}</b>. Settlement is autonomous once evidence is frozen — there is no accept button.`
-          : "Compile the published terms, then sign the exact candidate with the allowlisted merchant wallet.";
+        elements.policyState.textContent = rule?.compiledBy ? "COMPILED + ACTIVE" : "ACTIVE";
+        elements.policyState.className = rule ? "ok" : "";
+        elements.stepPolicyDetail.textContent = ruleHash
+          ? `compiled rule ${short(ruleHash, 6)}`
+          : "rule is not compiled yet";
+        elements.policyNote.textContent =
+          "This rule can open a dispute, but cannot move funds. The merchant must review the frozen Evidence Pack and sign ACCEPT.";
+      }
+
+      const metricLabel = (metric) =>
+        metric.replaceAll(/([A-Z])/g, " $1").trim().toUpperCase();
+
+      function metricValue(metric, value) {
+        if (value === undefined || value === null || !Number.isFinite(value)) return "—";
+        if (metric === "gasUtilization" || metric === "failedTransactionRate") {
+          return `${(value * 100).toFixed(2)}%`;
+        }
+        if (metric === "averageTransactionFeeWei") {
+          return `${(value / 1e18).toFixed(6)} ETH`;
+        }
+        if (metric === "averageEffectiveGasPriceWei") {
+          return `${(value / 1e9).toFixed(2)} GWEI`;
+        }
+        if (metric === "averageBlockIntervalSeconds") return `${value.toFixed(1)} S`;
+        return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+
+      function renderAnomalyMetrics(bucket) {
+        const visible = [
+          ["tps", "TPS"],
+          ["blocksPerMinute", "Blocks / min"],
+          ["averageTransactionFeeWei", "Average tx fee"],
+          ["failedTransactionRate", "Failed tx rate"],
+        ];
+        elements.anomalyMetrics.innerHTML = bucket
+          ? visible
+              .map(
+                ([metric, label]) => `
+                  <div class="anomaly-metric">
+                    <span>${label}</span>
+                    <b>${escapeHtml(metricValue(metric, bucket.metrics[metric]))}</b>
+                  </div>`,
+              )
+              .join("")
+          : '<p class="empty">No complete metric buckets yet.</p>';
+      }
+
+      function renderAnomalyChart(buckets, expected) {
+        const points = buckets
+          .slice(-48)
+          .map((bucket) => ({ at: bucket.start, value: bucket.metrics.tps }))
+          .filter(({ value }) => Number.isFinite(value));
+        if (points.length < 2) {
+          elements.anomalyChart.innerHTML =
+            '<p class="empty">The chart appears after two completed buckets.</p>';
+          return;
+        }
+        const width = 720;
+        const height = 190;
+        const top = 14;
+        const bottom = 28;
+        const left = 46;
+        const right = 8;
+        const prediction = expected.tps;
+        const candidates = points.map(({ value }) => value);
+        if (prediction) {
+          candidates.push(
+            prediction.lower99,
+            prediction.upper99,
+            prediction.expected,
+          );
+        }
+        const minimum = Math.min(...candidates);
+        const maximum = Math.max(...candidates);
+        const range = Math.max(maximum - minimum, 0.001);
+        const x = (index) =>
+          left + (index / (points.length - 1)) * (width - left - right);
+        const y = (value) =>
+          top + ((maximum - value) / range) * (height - top - bottom);
+        const line = points.map(({ value }, index) => `${x(index)},${y(value)}`).join(" ");
+        const area = `${left},${height - bottom} ${line} ${width - right},${height - bottom}`;
+        const band = prediction
+          ? `<rect x="${left}" y="${y(prediction.upper99)}" width="${width - left - right}" height="${Math.max(
+              1,
+              y(prediction.lower99) - y(prediction.upper99),
+            )}" fill="rgba(195,255,33,.08)" />`
+          : "";
+        const expectedLine = prediction
+          ? `<line x1="${left}" x2="${width - right}" y1="${y(prediction.expected)}" y2="${y(prediction.expected)}" stroke="rgba(195,255,33,.4)" stroke-dasharray="5 5" />`
+          : "";
+        const gridValues = [maximum, minimum + range / 2, minimum];
+        const first = new Date(points[0].at * 1000).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const last = new Date(points.at(-1).at * 1000).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        elements.anomalyChart.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="TPS over the latest four hours">
+            <defs>
+              <linearGradient id="tpsArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#c3ff21" stop-opacity=".18" />
+                <stop offset="100%" stop-color="#c3ff21" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            ${gridValues.map((value) => `
+              <line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" stroke="rgba(233,255,235,.08)" />
+              <text x="${left - 7}" y="${y(value) + 3}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">${escapeHtml(value.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 }))}</text>
+            `).join("")}
+            ${band}
+            ${expectedLine}
+            <polygon points="${area}" fill="url(#tpsArea)" />
+            <polyline points="${line}" fill="none" stroke="#c3ff21" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+            <circle cx="${x(points.length - 1)}" cy="${y(points.at(-1).value)}" r="3.5" fill="#c3ff21" />
+            <text x="${left}" y="${height - 7}" fill="#5b6761" font-family="IBM Plex Mono" font-size="9">${first}</text>
+            <text x="${width - right}" y="${height - 7}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="9">${last}</text>
+          </svg>`;
+      }
+
+      function renderAnomalyAlerts(alerts) {
+        const open = alerts.filter(({ status }) => status !== "resolved").length;
+        elements.anomalyAlertCount.textContent = `${open} open`;
+        elements.anomalyAlerts.innerHTML = alerts.length
+          ? alerts
+              .map((alert) => {
+                const signal = alert.signals[0];
+                const extra = Math.max(0, alert.signals.length - 1);
+                const actions =
+                  alert.status === "resolved"
+                    ? `<span class="note">${escapeHtml(alert.classification)} · ${escapeHtml(alert.note)}</span>`
+                    : `
+                      ${alert.status === "open" ? `<button data-anomaly-action="acknowledge" data-id="${escapeHtml(alert.id)}">Acknowledge</button>` : ""}
+                      <button data-anomaly-action="expected" data-id="${escapeHtml(alert.id)}">Expected change</button>
+                      <button data-anomaly-action="confirmed" data-id="${escapeHtml(alert.id)}">Confirm anomaly</button>
+                      <button data-anomaly-review="${escapeHtml(alert.id)}">Dispute gate</button>`;
+                return `
+                  <div class="alert-row ${escapeHtml(alert.severity)}" data-alert-id="${escapeHtml(alert.id)}">
+                    <div class="alert-top">
+                      <i class="alert-dot"></i>
+                      <b>${escapeHtml(alert.severity)} · ${escapeHtml(alert.status)}</b>
+                      <time>${escapeHtml(new Date(alert.startedAt * 1000).toLocaleString())}</time>
+                    </div>
+                    <p class="alert-copy">${
+                      signal
+                        ? `${escapeHtml(metricLabel(signal.metric))} ${escapeHtml(signal.direction)} at ${escapeHtml(metricValue(signal.metric, signal.observed))}; expected ${escapeHtml(metricValue(signal.metric, signal.expected))}${extra ? ` · +${extra} signals` : ""}.`
+                        : "Anomalous metric episode."
+                    }</p>
+                    <div class="alert-actions">${actions}</div>
+                  </div>`;
+              })
+              .join("")
+          : '<p class="empty">No anomaly alerts for this chain.</p>';
+      }
+
+      function renderBenchmarkTimelines(benchmark) {
+        const width = 1000;
+        const height = 184;
+        const left = 82;
+        const right = 10;
+        const from = Date.parse(benchmark.window.from) / 1000;
+        const to = Date.parse(benchmark.window.to) / 1000;
+        const x = (at) => left + ((at - from) / (to - from)) * (width - left - right);
+        const chains = benchmark.coverage.map(({ chainId, chainName }) => ({
+          id: chainId,
+          name: chainName,
+        }));
+        const canonical = benchmark.labels.canonical;
+        const simulated = benchmark.labels.observerSimulations;
+        const ticks = [from, from + (to - from) * 0.25, from + (to - from) * 0.5, from + (to - from) * 0.75, to];
+        elements.benchmarkTimelines.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Aligned annual anomaly scores for Base, Optimism, and Arbitrum One">
+            ${ticks.map((at) => `
+              <line x1="${x(at)}" x2="${x(at)}" y1="12" y2="154" stroke="rgba(233,255,235,.07)" />
+              <text x="${x(at)}" y="177" text-anchor="${at === from ? "start" : at === to ? "end" : "middle"}" fill="#5b6761" font-family="IBM Plex Mono" font-size="9">${escapeHtml(new Date(at * 1000).toLocaleDateString(undefined, { month: "short", year: "2-digit" }))}</text>
+            `).join("")}
+            ${chains.map((chain, index) => {
+              const y = 35 + index * 50;
+              const labels = canonical.filter(({ chainId }) => chainId === chain.id);
+              const simulations = simulated.filter(({ chainId }) => chainId === chain.id);
+              const markers = (benchmark.hourlyMaximumScores[chain.id] ?? [])
+                .filter(({ score }) => score >= 2)
+                .slice(0, 1200);
+              return `
+                <text x="0" y="${y + 4}" fill="#e9ffeb" font-family="IBM Plex Mono" font-size="10">${escapeHtml(chain.name)}</text>
+                <rect x="${left}" y="${y - 14}" width="${width - left - right}" height="28" rx="4" fill="rgba(233,255,235,.018)" />
+                <line x1="${left}" x2="${width - right}" y1="${y}" y2="${y}" stroke="rgba(233,255,235,.16)" />
+                ${labels.map((label) => {
+                  const start = x(Date.parse(label.startedAt) / 1000);
+                  const end = x(Date.parse(label.endedAt) / 1000);
+                  return `<rect x="${start}" y="${y - 12}" width="${Math.max(2, end - start)}" height="24" fill="rgba(246,185,59,.2)"><title>${escapeHtml(label.name)}</title></rect>`;
+                }).join("")}
+                ${simulations.map((label) => {
+                  const start = x(Date.parse(label.startedAt) / 1000);
+                  const end = x(Date.parse(label.endedAt) / 1000);
+                  return `<rect x="${start}" y="${y - 12}" width="${Math.max(2, end - start)}" height="24" fill="none" stroke="rgba(246,185,59,.6)" stroke-dasharray="3 3"><title>${escapeHtml(label.name)} · reconstructed observer window</title></rect>`;
+                }).join("")}
+                ${markers.map(({ at, score }) => `
+                  <circle cx="${x(at)}" cy="${y}" r="${score >= 3 ? 3.5 : 2.4}" fill="${score >= 3 ? "#ff5d73" : "#c3ff21"}" stroke="#09100d" stroke-width="1"><title>${escapeHtml(new Date(at * 1000).toISOString())} · score ${escapeHtml(score)}</title></circle>
+                `).join("")}
+              `;
+            }).join("")}
+          </svg>
+          <div class="benchmark-key">
+            <span><i></i>warning score</span>
+            <span><i></i>official incident window</span>
+            <span><i></i>critical score</span>
+            <span>dashed band = observer simulation, not an independent canonical detection</span>
+          </div>`;
+      }
+
+      function renderBenchmarkEvent(benchmark, id) {
+        const label = [
+          ...benchmark.labels.canonical,
+          ...benchmark.labels.observerSimulations,
+        ].find((candidate) => candidate.id === id);
+        const detail = benchmark.eventDetails.find((candidate) => candidate.id === id);
+        if (!label || !detail?.metric || detail.points.length < 2) {
+          elements.benchmarkEventChart.innerHTML =
+            '<p class="empty">No canonical metric series is available for this event. Observer-only stalls remain labeled simulations.</p>';
+          return;
+        }
+        const width = 720;
+        const height = 232;
+        const top = 18;
+        const bottom = 38;
+        const left = 52;
+        const right = 12;
+        const values = detail.points.flatMap((point) => [
+          point.observed,
+          point.lower999,
+          point.upper999,
+        ]).filter(Number.isFinite);
+        const minimum = Math.min(...values);
+        const maximum = Math.max(...values);
+        const range = Math.max(maximum - minimum, Math.abs(maximum) * 0.001, 1e-9);
+        const x = (index) =>
+          left + (index / (detail.points.length - 1)) * (width - left - right);
+        const y = (value) => top + ((maximum - value) / range) * (height - top - bottom);
+        const polygon = (upper, lower) => [
+          ...detail.points.map((point, index) => `${x(index)},${y(point[upper])}`),
+          ...detail.points.map((point, index) => `${x(detail.points.length - 1 - index)},${y(detail.points.at(-(index + 1))[lower])}`),
+        ].join(" ");
+        const line = (key) => detail.points.map((point, index) => `${x(index)},${y(point[key])}`).join(" ");
+        const detectionIndex = detail.points.findIndex(({ at }) => at === detail.detectionAt);
+        const gridValues = [maximum, minimum + range / 2, minimum];
+        const timeLabel = (at) => new Date(at * 1000)
+          .toISOString()
+          .slice(5, 16)
+          .replace("T", " ");
+        elements.benchmarkEventChart.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(label.name)} metric detail">
+            ${gridValues.map((value) => `
+              <line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" stroke="rgba(233,255,235,.08)" />
+              <text x="${left - 7}" y="${y(value) + 3}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">${escapeHtml(metricValue(detail.metric, value))}</text>
+            `).join("")}
+            <polygon points="${polygon("upper999", "lower999")}" fill="rgba(195,255,33,.045)" />
+            <polygon points="${polygon("upper99", "lower99")}" fill="rgba(195,255,33,.1)" />
+            <polyline points="${line("expected")}" fill="none" stroke="#65746c" stroke-width="1.2" stroke-dasharray="4 4" />
+            <polyline points="${line("observed")}" fill="none" stroke="#c3ff21" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+            ${detectionIndex >= 0 ? `
+              <line x1="${x(detectionIndex)}" x2="${x(detectionIndex)}" y1="${top}" y2="${height - bottom}" stroke="#ff5d73" stroke-dasharray="3 3" />
+              <circle cx="${x(detectionIndex)}" cy="${y(detail.points[detectionIndex].observed)}" r="4.5" fill="#ff5d73" stroke="#09100d" stroke-width="1.5" />
+              <text x="${x(detectionIndex)}" y="${top - 5}" text-anchor="middle" fill="#ff5d73" font-family="IBM Plex Mono" font-size="8">DETECTED</text>
+            ` : ""}
+            <text x="${left}" y="${height - 20}" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">${escapeHtml(timeLabel(detail.points[0].at))}Z</text>
+            <text x="${width - right}" y="${height - 20}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">${escapeHtml(timeLabel(detail.points.at(-1).at))}Z</text>
+            <text x="${left}" y="${height - 6}" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">${escapeHtml(metricLabel(detail.metric))} · observed</text>
+            <text x="${width - right}" y="${height - 6}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">99% / 99.9% predictive bands</text>
+          </svg>`;
+      }
+
+      function renderBenchmarkPlots(benchmark) {
+        const width = 300;
+        const height = 170;
+        const left = 30;
+        const right = 12;
+        const top = 24;
+        const bottom = 27;
+        const x = (value) => left + value * (width - left - right);
+        const y = (value) => height - bottom - value * (height - top - bottom);
+        const colors = ["#c3ff21", "#f6b93b", "#7b8cff"];
+        elements.benchmarkPrecisionRecall.innerHTML = `
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Event precision recall comparison">
+            ${[0, 0.5, 1].map((tick) => `
+              <line x1="${x(tick)}" x2="${x(tick)}" y1="${top}" y2="${height - bottom}" stroke="rgba(233,255,235,.07)" />
+              <line x1="${left}" x2="${width - right}" y1="${y(tick)}" y2="${y(tick)}" stroke="rgba(233,255,235,.07)" />
+              <text x="${x(tick)}" y="${height - 10}" text-anchor="middle" fill="#5b6761" font-family="IBM Plex Mono" font-size="7">${Math.round(tick * 100)}%</text>
+              <text x="${left - 5}" y="${y(tick) + 3}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="7">${Math.round(tick * 100)}%</text>
+            `).join("")}
+            ${benchmark.precisionRecall.map((series, index) => `
+              <polyline points="${series.points.map((point) => `${x(point.recall)},${y(point.precisionProxy)}`).join(" ")}" fill="none" stroke="${colors[index]}" stroke-width="1.8" />
+              ${series.points.map((point) => `<circle cx="${x(point.recall)}" cy="${y(point.precisionProxy)}" r="3.6" fill="${colors[index]}" stroke="#09100d" stroke-width="1.2"><title>${escapeHtml(series.model)} · ${escapeHtml(point.threshold)}</title></circle>`).join("")}
+              <text x="${50 + index * 88}" y="12" text-anchor="middle" fill="${colors[index]}" font-family="IBM Plex Mono" font-size="7.5">${escapeHtml(index === 0 ? "NIG v1" : index === 1 ? "MAD" : "NIG v2")}</text>
+            `).join("")}
+            <text x="${width - right}" y="${height - 1}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">recall</text>
+          </svg>`;
+        const calibration = benchmark.calibration[0];
+        const calibrationValues = calibration
+          ? [
+              calibration.nominal99,
+              calibration.empirical99,
+              calibration.nominal999,
+              calibration.empirical999,
+            ]
+          : [];
+        const calibrationMinimum = Math.max(
+          0,
+          Math.min(0.985, ...calibrationValues),
+        );
+        const calibrationRange = Math.max(0.001, 1 - calibrationMinimum);
+        const calibrationX = (value) =>
+          left + ((value - calibrationMinimum) / calibrationRange) * (width - left - right);
+        const calibrationY = (value) =>
+          height - bottom - ((value - calibrationMinimum) / calibrationRange) * (height - top - bottom);
+        const calibrationTicks = [
+          calibrationMinimum,
+          calibrationMinimum + calibrationRange / 2,
+          1,
+        ];
+        elements.benchmarkCalibration.innerHTML = calibration
+          ? `
+            <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Nominal versus empirical predictive coverage">
+              ${calibrationTicks.map((tick) => `
+                <line x1="${calibrationX(tick)}" x2="${calibrationX(tick)}" y1="${top}" y2="${height - bottom}" stroke="rgba(233,255,235,.07)" />
+                <line x1="${left}" x2="${width - right}" y1="${calibrationY(tick)}" y2="${calibrationY(tick)}" stroke="rgba(233,255,235,.07)" />
+                <text x="${calibrationX(tick)}" y="${height - 10}" text-anchor="middle" fill="#5b6761" font-family="IBM Plex Mono" font-size="7">${(tick * 100).toFixed(1)}%</text>
+              `).join("")}
+              <line x1="${calibrationX(calibrationMinimum)}" x2="${calibrationX(1)}" y1="${calibrationY(calibrationMinimum)}" y2="${calibrationY(1)}" stroke="rgba(233,255,235,.3)" stroke-dasharray="4 4" />
+              ${[
+                [calibration.nominal99, calibration.empirical99, "99%"],
+                [calibration.nominal999, calibration.empirical999, "99.9%"],
+              ].map(([nominal, empirical, label]) => `
+                <circle cx="${calibrationX(nominal)}" cy="${calibrationY(empirical)}" r="4.5" fill="#c3ff21" stroke="#09100d" stroke-width="1.2"><title>${label} · ${(empirical * 100).toFixed(3)}% empirical</title></circle>
+              `).join("")}
+              <text x="${width - right}" y="${height - 1}" text-anchor="end" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">nominal</text>
+              <text x="4" y="${top}" fill="#5b6761" font-family="IBM Plex Mono" font-size="8">empirical</text>
+            </svg>`
+          : '<p class="empty">Calibration is unavailable for the retained v1 model.</p>';
+      }
+
+      function renderBenchmarkResults(benchmark) {
+        const names = new Map(benchmark.coverage.map(({ chainId, chainName }) => [chainId, chainName]));
+        elements.benchmarkResults.innerHTML = `
+          <table>
+            <thead><tr><th>Chain</th><th>Annual buckets</th><th>Scored</th><th>Official events</th><th>Detected</th><th>Unmatched episodes</th><th>Median latency</th></tr></thead>
+            <tbody>
+              ${benchmark.perChain.map((chain) => `
+                <tr>
+                  <td>${escapeHtml(names.get(chain.chainId) ?? chain.chainId)}</td>
+                  <td>${escapeHtml(chain.buckets.toLocaleString())}</td>
+                  <td>${escapeHtml(chain.scoredBuckets.toLocaleString())}</td>
+                  <td>${escapeHtml(chain.observableEvents)}</td>
+                  <td>${escapeHtml(chain.matchedEvents)}</td>
+                  <td>${escapeHtml(chain.unmatchedEpisodes)}</td>
+                  <td>${chain.medianLatencyMinutes === null ? "—" : `${escapeHtml(chain.medianLatencyMinutes.toFixed(1))} min`}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      async function loadAnomalyBenchmark() {
+        try {
+          const response = await fetch("/api/anomaly/benchmark");
+          const benchmark = await response.json();
+          if (!response.ok) throw new Error(benchmark.error || "Annual artifact unavailable.");
+          setPill(
+            elements.benchmarkState,
+            benchmark.promoted
+              ? `${benchmark.selectedModel} promoted`
+              : `${benchmark.selectedModel} retained`,
+            benchmark.promoted ? "live" : "",
+          );
+          renderBenchmarkTimelines(benchmark);
+          const labels = [
+            ...benchmark.labels.canonical,
+            ...benchmark.labels.observerSimulations,
+          ];
+          elements.benchmarkEvent.innerHTML = labels
+            .map((label) => `<option value="${escapeHtml(label.id)}">${escapeHtml(label.name)}</option>`)
+            .join("");
+          renderBenchmarkEvent(benchmark, elements.benchmarkEvent.value);
+          elements.benchmarkEvent.onchange = () =>
+            renderBenchmarkEvent(benchmark, elements.benchmarkEvent.value);
+          renderBenchmarkPlots(benchmark);
+          renderBenchmarkResults(benchmark);
+        } catch (error) {
+          setPill(elements.benchmarkState, "Artifact unavailable", "warn");
+          elements.benchmarkTimelines.innerHTML =
+            `<p class="empty">${escapeHtml(error.message)} Run <code>npm run anomaly:benchmark</code> with a configured Substreams token.</p>`;
+          elements.benchmarkEvent.innerHTML = "";
+          elements.benchmarkEventChart.innerHTML = "";
+          elements.benchmarkPrecisionRecall.innerHTML = "";
+          elements.benchmarkCalibration.innerHTML = "";
+          elements.benchmarkResults.innerHTML = "";
+        }
+      }
+
+      async function loadAnomalyResearch() {
+        try {
+          const { sources, models } = await api("/api/anomaly/research");
+          elements.modelIndex.innerHTML = models
+            .map(
+              (model) => `
+                <article>
+                  <span>${escapeHtml(model.role)}</span>
+                  <b>${escapeHtml(model.id)}</b>
+                  <p>${escapeHtml(model.method)}</p>
+                  <small>${escapeHtml(model.evaluation)}</small>
+                </article>`,
+            )
+            .join("");
+          elements.researchIndex.innerHTML = sources
+            .map(
+              (source, index) => `
+                <article class="research-row">
+                  <div class="research-number">${String(index + 1).padStart(2, "0")}</div>
+                  <div>
+                    <span>${escapeHtml(source.focus)}</span>
+                    <a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a>
+                    <div class="research-citation">${escapeHtml(source.citation)}</div>
+                  </div>
+                  <p>${escapeHtml(source.modelApplication)}</p>
+                </article>`,
+            )
+            .join("");
+          setPill(elements.researchState, `${sources.length} sources indexed`, "live");
+        } catch (error) {
+          setPill(elements.researchState, "Index unavailable", "warn");
+          elements.modelIndex.innerHTML = "";
+          elements.researchIndex.innerHTML =
+            `<p class="empty">${escapeHtml(error.message)}</p>`;
+        }
+      }
+
+      async function loadWalletNotifications(chainId) {
+        elements.anomalyWallet.value = watchedWallet;
+        if (!watchedWallet || !chainId) {
+          elements.anomalyNotifications.innerHTML =
+            '<p class="empty">Connect a wallet to receive warnings for the selected chain.</p>';
+          return;
+        }
+        const { notifications } = await api(
+          `/api/anomaly/wallets/${encodeURIComponent(watchedWallet)}/notifications?chainId=${encodeURIComponent(chainId)}&limit=8`,
+        );
+        elements.anomalyNotifications.innerHTML = notifications.length
+          ? notifications
+              .map(
+                ({ alert, assessment, event }) => `
+                  <div class="wallet-notification">
+                    <i class="alert-dot"></i>
+                    <div>
+                      <b>${escapeHtml(event.replace("anomaly.", ""))} · ${escapeHtml(alert.severity)} · ${escapeHtml(new Date(alert.startedAt * 1000).toLocaleString())}</b>
+                      <p>${escapeHtml(assessment.walletWarning)}</p>
+                    </div>
+                  </div>`,
+              )
+              .join("")
+          : '<p class="empty">No wallet warnings for this chain.</p>';
+      }
+
+      function renderHeartbeat(heartbeat) {
+        const status = heartbeat?.status ?? "unknown";
+        elements.anomalyHeartbeat.className = `heartbeat-summary ${status}`;
+        elements.anomalyHeartbeat.querySelector("span").textContent =
+          status === "healthy"
+            ? `All ${heartbeat.chains.length} chains healthy`
+            : status === "disabled"
+              ? "Heartbeat disabled"
+              : `Cross-chain ${status}`;
+        elements.heartbeatChains.innerHTML = (heartbeat?.chains ?? [])
+          .map((chain) => {
+            const age =
+              chain.blockAgeSeconds === null
+                ? "no block"
+                : chain.blockAgeSeconds < 60
+                  ? `${chain.blockAgeSeconds}s block age`
+                  : `${Math.floor(chain.blockAgeSeconds / 60)}m block age`;
+            const latency =
+              chain.rpcLatencyMs === null ? "no RPC" : `${chain.rpcLatencyMs}ms RPC`;
+            return `
+              <div class="heartbeat-chain ${escapeHtml(chain.status)}">
+                <i></i>
+                <b>${escapeHtml(chain.name)}</b>
+                <span>${escapeHtml(chain.status)} · ${escapeHtml(age)} · ${escapeHtml(latency)} · #${escapeHtml(chain.finalizedBlock ?? "—")}</span>
+              </div>`;
+          })
+          .join("");
+      }
+
+      async function loadAnomalies() {
+        clearTimeout(anomalyRefreshTimer);
+        try {
+          const [state, heartbeat] = await Promise.all([
+            api("/api/anomaly/chains"),
+            api("/api/anomaly/heartbeat"),
+          ]);
+          renderHeartbeat(heartbeat);
+          if (!state.enabled || state.chains.length === 0) {
+            setPill(elements.anomalyPill, state.error ? "Configuration error" : "Disabled", state.error ? "warn" : "");
+            elements.anomalyChain.innerHTML = '<option>Not configured</option>';
+            elements.anomalyChain.disabled = true;
+            elements.anomalyRun.disabled = true;
+            elements.anomalyWatch.disabled = true;
+            elements.anomalySource.textContent =
+              state.error ?? "Set ANOMALY_ENABLED=1 and configure at least one EVM chain.";
+            renderAnomalyMetrics();
+            renderAnomalyAlerts([]);
+            renderAnomalyChart([], {});
+            await loadWalletNotifications();
+            return;
+          }
+          const selected = elements.anomalyChain.value;
+          elements.anomalyWatch.disabled = false;
+          elements.anomalyChain.innerHTML = state.chains
+            .map(
+              (chain) =>
+                `<option value="${escapeHtml(chain.id)}">${escapeHtml(chain.name)} · ${escapeHtml(chain.status)}</option>`,
+            )
+            .join("");
+          elements.anomalyChain.value = state.chains.some(({ id }) => id === selected)
+            ? selected
+            : state.chains[0].id;
+          const chain = state.chains.find(({ id }) => id === elements.anomalyChain.value);
+          const from = Math.floor(Date.now() / 1000) - 4 * 60 * 60;
+          const [{ buckets, expected }, { alerts }] = await Promise.all([
+            api(`/api/anomaly/chains/${encodeURIComponent(chain.id)}/metrics?from=${from}`),
+            api(`/api/anomalies?chainId=${encodeURIComponent(chain.id)}&limit=20`),
+          ]);
+          setPill(
+            elements.anomalyPill,
+            chain.ready ? "Baseline ready" : chain.status,
+            chain.status === "degraded" ? "warn" : chain.ready ? "live" : "",
+          );
+          elements.anomalySource.textContent = chain.error
+            ? chain.error
+            : `${chain.source.replaceAll("-", " ")} · ${chain.acceptedBuckets} accepted buckets · ${Math.round(chain.backfillProgress * 100)}% backfill · ${chain.confirmations} confirmations`;
+          renderAnomalyMetrics(buckets.at(-1));
+          renderAnomalyChart(buckets, expected);
+          renderAnomalyAlerts(alerts);
+          await loadWalletNotifications(chain.id);
+        } catch (error) {
+          setPill(elements.anomalyPill, "Unavailable", "warn");
+          elements.anomalySource.textContent = error.message;
+          renderHeartbeat({ status: "unhealthy", chains: [] });
+        } finally {
+          anomalyRefreshTimer = setTimeout(loadAnomalies, 30_000);
+        }
       }
 
       function renderSteps(activeStage, failedStage) {
@@ -1020,7 +2064,14 @@
 
         const claims = new Map(incident.claims.map((claim) => [claim.victim, claim]));
         const refundVisible = stage === "complete";
-        const outcomeVisible = ["claims", "evidence", "refund", "complete"].includes(stage);
+        const outcomeVisible = [
+          "claims",
+          "evidence",
+          "authorization",
+          "authorizing",
+          "refund",
+          "complete",
+        ].includes(stage);
         elements.ledgerRows.innerHTML = incident.evidence.victims
           .map((victim, index) => {
             const allowed = allowedPayment(victim);
@@ -1102,7 +2153,7 @@
         if (!run) {
           const provider = config.demoProvider;
           elements.liveBody.innerHTML = `
-            <p class="eyebrow" style="margin-bottom:8px">Integrated upgrade demo</p>
+            <p class="eyebrow" style="margin-bottom:8px">Dispute path demo</p>
             <div class="provider">
               <b>${escapeHtml(provider.name)}</b>
               <p>${escapeHtml(provider.explanation)}</p>
@@ -1124,16 +2175,53 @@
           return;
         }
 
-        if (["first-charges", "retry-delay", "second-charges", "graph"].includes(run.stage)) {
+        if (["first-charges", "retry-delay", "second-charges"].includes(run.stage)) {
           elements.liveBody.innerHTML = `
-            <p class="eyebrow" style="margin-bottom:9px">${
-              run.stage === "graph" ? "The Graph indexing monitor" : "ByteMeter billing trace"
-            }</p>
+            <p class="eyebrow" style="margin-bottom:9px">ByteMeter billing trace</p>
+            ${renderLiveCharges(run)}
+          `;
+          return;
+        }
+
+        if (run.stage === "report") {
+          const charge = run.charges.find(
+            ({ label, sequence }) => label === "A" && sequence === 2,
+          );
+          elements.liveBody.innerHTML = `
+            <p class="eyebrow" style="margin-bottom:8px">Trigger · no Graph scan yet</p>
+            <div class="provider">
+              <b>Wallet A reports charge #2</b>
+              <p>This wallet signs one confirmed transaction hash. Wallets B and C are still unknown to BITEBACK.</p>
+              <div class="facts">
+                <div><span>Reporter</span><b>${escapeHtml(short(charge?.wallet, 7))}</b></div>
+                <div><span>Reported tx</span><b>${escapeHtml(short(charge?.txHash, 7))}</b></div>
+                <div><span>Discovered</span><b>1 OF ?</b></div>
+              </div>
+            </div>`;
+          return;
+        }
+
+        if (run.stage === "reporting") {
+          elements.liveBody.innerHTML = stateBlock(
+            "signature",
+            "Wallet A is signing its report.",
+            "The signed message names one Base transaction. No other wallet address is supplied to The Graph.",
+          );
+          return;
+        }
+
+        if (run.stage === "graph") {
+          elements.liveBody.innerHTML = `
+            <p class="eyebrow" style="margin-bottom:9px">1 signed report → collective search</p>
+            <div class="provider" style="margin-bottom:10px">
+              <b>Wallet signature verified</b>
+              <p>${escapeHtml(short(run.report?.reporter, 7))} reported ${escapeHtml(short(run.report?.txHash, 7))}. Merchant, token and window were derived from that transaction.</p>
+            </div>
             ${renderLiveCharges(run)}
             <div class="gmon">
-              <div><span>Required block</span><b>${escapeHtml(run.base.requiredBlock ?? "WAITING")}</b></div>
-              <div><span>Indexed block</span><b>${escapeHtml(run.graph.indexedBlock ?? "WAITING")}</b></div>
-              <div><span>Substreams</span><b>${escapeHtml(run.graph.transferCount)} / 6 TX</b></div>
+              <div><span>Reporters</span><b>1 WALLET</b></div>
+              <div><span>Graph result</span><b>${escapeHtml(run.graph.affectedWallets)} WALLETS</b></div>
+              <div><span>Substreams</span><b>${escapeHtml(run.graph.transferCount)} TX</b></div>
             </div>`;
           return;
         }
@@ -1160,11 +2248,29 @@
           return;
         }
 
+        if (run.stage === "authorization") {
+          elements.liveBody.innerHTML = stateBlock(
+            "signature",
+            "Evidence frozen. Merchant decision required.",
+            "ByteMeter can contest the compiled rule or explicitly authorize this exact Evidence Pack and settlement total.",
+          );
+          return;
+        }
+
+        if (run.stage === "authorizing") {
+          elements.liveBody.innerHTML = stateBlock(
+            "spinner",
+            "Verifying merchant authorization.",
+            "The signed ACCEPT commits to the incident, evidence hash and exact payout total.",
+          );
+          return;
+        }
+
         if (run.stage === "refund") {
           elements.liveBody.innerHTML = stateBlock(
             "spinner",
             "Submitting one atomic payout.",
-            "The signed rule, evidence hash, bond balance and allowance have been revalidated.",
+            "The signed ACCEPT, evidence hash, reserve balance and allowance have been revalidated.",
           );
           return;
         }
@@ -1218,11 +2324,12 @@
         elements.openPayout.hidden = true;
         setPill(elements.statusPill, "Ready to run", "live");
         setPill(elements.livePhasePill, "Idle");
+        elements.stepReportDetail.textContent = "no transaction reported";
         elements.stepGraphDetail.textContent = "no incident exists";
         elements.stepEvidenceDetail.textContent = "nothing archived yet";
         elements.runner.classList.remove("show");
         renderLedger("ready");
-        renderSteps("graph");
+        renderSteps("report");
       }
 
       function renderLiveRun(run) {
@@ -1232,7 +2339,7 @@
         if (!run) {
           renderEmpty();
           renderLiveBody();
-          renderPrimaryAction(false, "Start live incident");
+          renderPrimaryAction(false, "Create live charges");
           return;
         }
 
@@ -1244,9 +2351,13 @@
             ? "complete"
             : run.stage === "refund"
               ? "refund"
+              : ["authorization", "authorizing"].includes(run.stage)
+                ? "authorization"
               : ["claims", "evidence"].includes(run.stage)
                 ? "evidence"
-                : "graph";
+                : ["report", "reporting"].includes(run.stage)
+                  ? "report"
+                  : "graph";
         renderSteps(partnerStage, run.stage === "failed" ? partnerStage : undefined);
         renderLiveBody(run);
         renderLedger(run.stage);
@@ -1267,11 +2378,24 @@
           : "WAITING";
         elements.statState.textContent = run.stage.replaceAll("-", " ").toUpperCase();
         elements.statState.className = `sm ${run.stage === "failed" ? "" : "ok"}`;
-        elements.stepGraphDetail.textContent = `${run.graph.transferCount} / 6 transfers indexed`;
+        elements.stepReportDetail.textContent = run.report
+          ? `${short(run.report.reporter, 6)} signature verified`
+          : run.stage === "report"
+            ? "Wallet A report required"
+            : "no transaction reported";
+        elements.stepGraphDetail.textContent = run.report
+          ? `1 reporter → ${run.graph.affectedWallets} affected wallets`
+          : "scan blocked until a wallet reports";
         if (run.evidence?.rootHash) {
           elements.stepEvidenceDetail.textContent = run.evidence.verified
             ? "sha-256 round-trip matched"
             : "uploading canonical bytes";
+        }
+        if (["authorization", "authorizing"].includes(run.stage)) {
+          elements.stepAuthorizationDetail.textContent =
+            run.stage === "authorization" ? "explicit ACCEPT required" : "verifying signed ACCEPT";
+        } else if (["refund", "complete"].includes(run.stage)) {
+          elements.stepAuthorizationDetail.textContent = "merchant ACCEPT verified";
         }
         if (run.stage === "complete" && incident?.payout) {
           elements.stepRefundDetail.textContent = `1 tx · ${incident.evidence.victims.length} credits · HCS logged`;
@@ -1282,23 +2406,33 @@
           "first-charges": ["Charging one 3-query pack.", "ByteMeter is submitting the first valid charge for each wallet."],
           "retry-delay": ["First purchase confirmed.", "The billing worker will retry the same fixed-price charge in four seconds."],
           "second-charges": ["Second equal charges submitted.", "They exist on Base, but BITEBACK will not classify them before The Graph indexes them."],
-          graph: ["Waiting for The Graph.", `${run.graph.transferCount} of 6 source transfers indexed after ${run.graph.queryCount} live queries.`],
-          claims: ["Policy violation detected live.", "Three affected wallets are authorizing their Hedera recipients."],
+          report: ["Six charges exist. Zero incidents exist.", "Wallet A must report one confirmed charge before BITEBACK asks The Graph to search for anyone else."],
+          reporting: ["Wallet A submitted one signed report.", "BITEBACK is verifying the reporter and deriving the merchant, token and window from that transaction."],
+          graph: ["One reporter triggered the collective search.", `The Graph found ${run.graph.affectedWallets} affected wallets across ${run.graph.transferCount} live transfers.`],
+          claims: ["One reporter became three affected wallets.", "The two additional wallets came from The Graph, not from the original report."],
           evidence: ["Preserving the canonical proof.", "0G Storage receives the Evidence Pack and BITEBACK recomputes its SHA-256."],
-          refund: ["Evidence verified. Settling on Hedera.", "One atomic transaction will credit all three recipients from the Consumer Bond."],
-          complete: ["Three wallets got bitten. All three got paid back.", "The new Base charges, Graph result, 0G proof and Hedera payout were all created during this run."],
+          authorization: ["Evidence ready. ByteMeter must decide.", "No money can move until the merchant explicitly authorizes this exact settlement."],
+          authorizing: ["ByteMeter authorized the settlement.", "BITEBACK is verifying the signed ACCEPT before executing any transfer."],
+          refund: ["Authorization verified. Settling on Hedera.", "One atomic transaction will credit all three recipients from the merchant reserve."],
+          complete: ["Three wallets got bitten. All three got paid back.", "The dispute, merchant authorization and Hedera settlement were all verified during this run."],
           failed: ["Live run failed.", run.error ?? "An external testnet stage failed."],
         }[run.stage];
         elements.heroHeadline.textContent = copy[0];
         elements.heroCopy.textContent = copy[1];
 
-        const running = !["complete", "failed"].includes(run.stage);
+        const running = !["report", "authorization", "complete", "failed"].includes(run.stage);
         if (run.stage === "failed") {
           setPill(elements.statusPill, "Live run failed", "warn");
           setPill(elements.livePhasePill, "Failed", "warn");
         } else if (run.stage === "complete") {
           setPill(elements.statusPill, "Settlement verified", "live");
-          setPill(elements.livePhasePill, "09 / 09 complete", "live");
+          setPill(elements.livePhasePill, "13 / 13 complete", "live");
+        } else if (run.stage === "authorization") {
+          setPill(elements.statusPill, "Merchant decision required", "warn");
+          setPill(elements.livePhasePill, "Awaiting ACCEPT", "warn");
+        } else if (run.stage === "report") {
+          setPill(elements.statusPill, "Wallet report required", "warn");
+          setPill(elements.livePhasePill, "1 wallet ready", "warn");
         } else if (run.incidentId) {
           setPill(elements.statusPill, "Policy violation", "warn");
           setPill(elements.livePhasePill, run.stage.replaceAll("-", " "), "live pulse");
@@ -1314,24 +2448,37 @@
 
         renderPrimaryAction(
           running,
-          running ? "Live incident running" : "Start another live incident",
+          run.stage === "report"
+            ? "Report Wallet A charge"
+            : run.stage === "authorization"
+              ? "Authorize settlement"
+            : running
+              ? "Live incident running"
+              : "Create another live run",
         );
-        elements.runner.classList.toggle("show", running);
+        elements.runner.classList.toggle(
+          "show",
+          !["report", "authorization", "complete", "failed"].includes(run.stage),
+        );
         elements.runnerMessage.textContent = run.message;
         const phases = [
           "preparing",
           "first-charges",
           "retry-delay",
           "second-charges",
+          "report",
+          "reporting",
           "graph",
           "claims",
           "evidence",
+          "authorization",
+          "authorizing",
           "refund",
           "complete",
         ];
         const phase = Math.max(0, phases.indexOf(run.stage));
-        elements.runnerCount.textContent = `${String(Math.min(phase + 1, 9)).padStart(2, "0")} / 09`;
-        elements.runnerProgress.style.width = `${((phase + 1) / 9) * 100}%`;
+        elements.runnerCount.textContent = `${String(Math.min(phase + 1, 13)).padStart(2, "0")} / 13`;
+        elements.runnerProgress.style.width = `${((phase + 1) / 13) * 100}%`;
       }
 
       async function loadTimeline() {
@@ -1346,6 +2493,7 @@
                 .map((event) => {
                   const confirmed = event.event === "PAYOUT_CONFIRMED";
                   const details = {
+                    DISPUTE_REPORTED: `Wallet A reported ${short(incident.evidence.trigger?.txHash, 6)}`,
                     INCIDENT_OPENED: "policy breach detected",
                     CLAIM_JOINED: `${incident.claims.length} wallets joined claim`,
                     EVIDENCE_ANCHORED: "evidence anchored to 0G storage",
@@ -1377,6 +2525,10 @@
         if (run?.stage === "complete") {
           await Promise.all([loadTimeline(), api("/api/bond").then(renderBond)]);
           notify("Live incident complete. Six new Base transfers and one new Hedera payout.");
+        } else if (run?.stage === "report") {
+          notify("Six charges confirmed. Wallet A must now report one transaction.");
+        } else if (run?.stage === "authorization") {
+          notify("Evidence verified. ByteMeter must now authorize the settlement.");
         }
         return run;
       }
@@ -1385,7 +2537,7 @@
         clearTimeout(livePollTimer);
         try {
           const run = await refreshLiveDemo();
-          if (run && !["complete", "failed"].includes(run.stage)) {
+          if (run && !["report", "authorization", "complete", "failed"].includes(run.stage)) {
             livePollTimer = setTimeout(pollLiveDemo, 650);
           }
         } catch (error) {
@@ -1401,7 +2553,7 @@
           notify("Enter the operator token once before recording, then start the incident.");
           return;
         }
-        renderPrimaryAction(true, "Starting live incident");
+        renderPrimaryAction(true, "Creating live charges");
         elements.timelineRows.innerHTML =
           '<p class="empty">A new Hedera audit trail appears here after live detection.</p>';
         try {
@@ -1410,7 +2562,37 @@
           renderLiveRun(run);
           await pollLiveDemo();
         } catch (error) {
-          renderPrimaryAction(false, "Start live incident");
+          renderPrimaryAction(false, "Create live charges");
+          notify(error.message);
+        }
+      }
+
+      async function authorizeSettlement() {
+        renderPrimaryAction(true, "Authorizing settlement");
+        try {
+          const { run } = await api("/api/demo/live/authorize", {
+            method: "POST",
+            body: "{}",
+          });
+          renderLiveRun(run);
+          await pollLiveDemo();
+        } catch (error) {
+          renderPrimaryAction(false, "Authorize settlement");
+          notify(error.message);
+        }
+      }
+
+      async function reportWalletACharge() {
+        renderPrimaryAction(true, "Signing Wallet A report");
+        try {
+          const { run } = await api("/api/demo/live/report", {
+            method: "POST",
+            body: "{}",
+          });
+          renderLiveRun(run);
+          await pollLiveDemo();
+        } catch (error) {
+          renderPrimaryAction(false, "Report Wallet A charge");
           notify(error.message);
         }
       }
@@ -1431,7 +2613,10 @@
           }
           renderLiveRun(live.run);
           renderBond(bond);
-          if (live.run && !["complete", "failed"].includes(live.run.stage)) {
+          if (
+            live.run &&
+            !["report", "authorization", "complete", "failed"].includes(live.run.stage)
+          ) {
             pollLiveDemo();
           } else if (live.run?.stage === "complete") {
             await loadTimeline();
@@ -1445,7 +2630,11 @@
         }
       }
 
-      elements.runProof.addEventListener("click", startLiveDemo);
+      elements.runProof.addEventListener("click", () => {
+        if (liveStage === "report") reportWalletACharge();
+        else if (liveStage === "authorization") authorizeSettlement();
+        else startLiveDemo();
+      });
 
       elements.operatorToken.value = sessionStorage.getItem("biteback.operatorToken") ?? "";
       elements.operatorToken.addEventListener("input", () => {
@@ -1457,17 +2646,20 @@
         elements.policyState.textContent = "COMPILING";
         elements.policyState.className = "";
         try {
-          pendingPolicy = await api("/api/rules/compile", {
+          const compiled = await api("/api/rules/compile", {
             method: "POST",
             body: JSON.stringify({ terms: elements.policyTerms.value }),
           });
-          elements.policyState.textContent = "READY TO SIGN";
-          elements.policyModel.textContent = pendingPolicy.model;
-          elements.compiledLimit.textContent = `${pendingPolicy.candidate.maxChargesPerDay} / UTC DAY · ${pendingPolicy.candidate.compensationBps / 100}%`;
-          elements.compiledHash.textContent = short(pendingPolicy.ruleHash, 8);
+          config.rule = compiled.candidate;
+          config.ruleHash = compiled.ruleHash;
+          renderPolicy(config.rule, config.ruleHash);
+          elements.policyState.textContent = "COMPILED + ACTIVE";
+          elements.policyModel.textContent = compiled.model;
+          elements.compiledLimit.textContent = `${compiled.candidate.maxChargesPerDay} / UTC DAY · ${compiled.candidate.compensationBps / 100}%`;
+          elements.compiledHash.textContent = short(compiled.ruleHash, 8);
           elements.policyNote.textContent =
-            "Candidate validated. Sign its exact hash with the allowlisted merchant wallet.";
-          elements.signPolicy.hidden = false;
+            "Rule activated for dispute detection. It cannot move funds without a post-evidence merchant ACCEPT.";
+          notify("Published terms compiled into an active dispute rule.");
         } catch (error) {
           elements.policyState.textContent = "COMPILE FAILED";
           notify(error.message);
@@ -1476,32 +2668,114 @@
         }
       });
 
-      elements.signPolicy.addEventListener("click", async () => {
-        if (!pendingPolicy) return;
-        elements.signPolicy.disabled = true;
+      elements.anomalyChain.addEventListener("change", loadAnomalies);
+      elements.anomalyRun.addEventListener("click", async () => {
+        if (!elements.operatorToken.value.trim()) {
+          elements.operatorToken.focus();
+          notify("Enter the operator token before starting the monitor.");
+          return;
+        }
+        elements.anomalyRun.disabled = true;
         try {
-          if (!window.ethereum) throw new Error("No EVM wallet was found in this browser.");
-          const [account] = await window.ethereum.request({ method: "eth_requestAccounts" });
-          const bytes = new TextEncoder().encode(pendingPolicy.signatureMessage);
-          const messageHex = `0x${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-          const signature = await window.ethereum.request({
-            method: "personal_sign",
-            params: [messageHex, account],
-          });
-          const result = await api("/api/rules/sign", {
+          await api("/api/anomalies/run", {
             method: "POST",
-            body: JSON.stringify({ ruleHash: pendingPolicy.ruleHash, signature }),
+            body: JSON.stringify({ chainId: elements.anomalyChain.value }),
           });
-          config.rule = result.rule;
-          config.ruleHash = result.ruleHash;
-          pendingPolicy = undefined;
-          elements.signPolicy.hidden = true;
-          renderPolicy(config.rule, config.ruleHash);
-          notify("Merchant policy signed and active.");
+          notify("Anomaly monitor started in the background.");
+          setTimeout(loadAnomalies, 800);
         } catch (error) {
           notify(error.message);
         } finally {
-          elements.signPolicy.disabled = false;
+          elements.anomalyRun.disabled = false;
+        }
+      });
+      elements.anomalyAlerts.addEventListener("click", async (event) => {
+        const review = event.target.closest("[data-anomaly-review]");
+        if (review) {
+          try {
+            const query = watchedWallet
+              ? `?wallet=${encodeURIComponent(watchedWallet)}`
+              : "";
+            const readiness = await api(
+              `/api/anomalies/${encodeURIComponent(review.dataset.anomalyReview)}/dispute-readiness${query}`,
+            );
+            notify(
+              readiness.collectiveDisputeReady
+                ? `${readiness.relatedIncidents.length} deterministic collective case(s) already match this window.`
+                : "Anomaly cannot open a dispute. A wallet must sign one confirmed transaction report first.",
+            );
+          } catch (error) {
+            notify(error.message);
+          }
+          return;
+        }
+        const button = event.target.closest("[data-anomaly-action]");
+        if (!button) return;
+        const action = button.dataset.anomalyAction;
+        const id = button.dataset.id;
+        const note = window.prompt(
+          action === "acknowledge"
+            ? "Optional operator note"
+            : "Resolution note (required)",
+          "",
+        );
+        if (note === null || (action !== "acknowledge" && !note.trim())) return;
+        button.disabled = true;
+        try {
+          if (action === "acknowledge") {
+            await api(`/api/anomalies/${encodeURIComponent(id)}/acknowledge`, {
+              method: "POST",
+              body: JSON.stringify(note.trim() ? { note: note.trim() } : {}),
+            });
+          } else {
+            await api(`/api/anomalies/${encodeURIComponent(id)}/resolve`, {
+              method: "POST",
+              body: JSON.stringify({
+                classification: action,
+                note: note.trim(),
+              }),
+            });
+          }
+          await loadAnomalies();
+          notify(action === "acknowledge" ? "Alert acknowledged." : "Alert resolved.");
+        } catch (error) {
+          notify(error.message);
+        } finally {
+          button.disabled = false;
+        }
+      });
+      elements.anomalyWatch.addEventListener("click", async () => {
+        if (!window.ethereum) {
+          notify("No browser wallet is available.");
+          return;
+        }
+        elements.anomalyWatch.disabled = true;
+        try {
+          const [wallet] = await window.ethereum.request({
+            method: "eth_requestAccounts",
+          });
+          const chainId = elements.anomalyChain.value;
+          const message = [
+            "BITEBACK_ANOMALY_WATCH_V1",
+            `wallet=${wallet.toLowerCase()}`,
+            `chain=${chainId}`,
+          ].join("\n");
+          const signature = await window.ethereum.request({
+            method: "personal_sign",
+            params: [message, wallet],
+          });
+          await api("/api/anomaly/wallets/watch", {
+            method: "POST",
+            body: JSON.stringify({ wallet, chainId, signature }),
+          });
+          watchedWallet = wallet;
+          sessionStorage.setItem("biteback:anomaly-wallet", wallet);
+          await loadWalletNotifications(chainId);
+          notify("Wallet warnings enabled for this chain.");
+        } catch (error) {
+          notify(error.message);
+        } finally {
+          elements.anomalyWatch.disabled = false;
         }
       });
 
@@ -1513,6 +2787,9 @@
       });
 
       load();
+      loadAnomalies();
+      loadAnomalyBenchmark();
+      loadAnomalyResearch();
     </script>
   </body>
 </html>
