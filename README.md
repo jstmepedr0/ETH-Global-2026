@@ -12,6 +12,19 @@ collective loss and packages one case to contest or settle.
 
 ![BITEBACK architecture](./ARCHITECTURE.png)
 
+## Judge path
+
+| Question | Verifiable answer |
+|---|---|
+| Does it work? | `npm run check` builds the service and runs the deterministic, security, anomaly, and settlement tests |
+| Is it live? | One public testnet run links the reported Base transaction, Graph fan-out, HCS audit, 0G evidence hash, and atomic Hedera payout below |
+| What is novel? | One wallet report expands into one collective case; an independent Bayesian monitor warns wallets before deterministic evidence exists |
+| Can AI or an anomaly move funds? | No. Only Graph-derived violations, wallet claims, frozen evidence, and a merchant-signed `ACCEPT` can unlock settlement |
+| Was the anomaly model audited? | A resumable one-year Base, Optimism, and Arbitrum pipeline compares v1, seasonal MAD, and conformal v2; it publishes no result until exact coverage passes |
+
+For the copy-ready description, three-minute video script, live-demo sequence,
+and final checklist, see [SUBMISSION.md](./SUBMISSION.md).
+
 ## One incident instead of hundreds of tickets
 
 | Fragmented process | BITEBACK |
@@ -19,7 +32,7 @@ collective loss and packages one case to contest or settle.
 | Every user discovers the issue and chases the protocol separately | One report triggers the collective search |
 | The protocol investigates and reconciles wallets one at a time | One deterministic affected-wallet set |
 | Losses and compensation are calculated case by case | One exact collective loss and one Evidence Pack |
-| Resolution is repeated for every claimant | One case to contest or settle; integrated merchants pay everyone atomically |
+| Resolution is repeated for every claimant | One case to contest or authorize; Hedera pays everyone atomically after approval |
 
 ## Two paths, one engine
 
@@ -27,8 +40,8 @@ collective loss and packages one case to contest or settle.
 |---|---|---|
 | Trigger | One user identifies a disputed payment | Merchant opts in before any incident |
 | Policy | Candidate rule compiled from the merchant's published terms, with URL and rule hash | Merchant signs the exact rule hash |
-| Result | One affected-wallet set, exact collective loss and Evidence Pack | The same case plus automatic atomic payout |
-| Merchant action | Review one aggregated case: contest or settle | No post-incident approval; consent already exists |
+| Result | One affected-wallet set, exact collective loss and Evidence Pack | The same case with pre-authorized automatic payout |
+| Merchant action | Review one aggregated case, then sign `ACCEPT` or `REJECT` | Consent exists before the incident |
 | Hard limit | No published billing policy means no deterministic incident | Requires a funded bond and active allowance |
 
 The go-to-market starts with disputes because a new protocol cannot assume
@@ -36,25 +49,28 @@ merchant adoption. One complaint supplies attention; BITEBACK supplies the
 fan-out that an individual cannot produce. Public status is created only when
 the deterministic detector finds violations, and an unsigned compiled rule is
 presented as BITEBACK's contestable interpretation of the cited terms—not as an
-admitted fact. Scans are scoped, cached and rate-limited by merchant, token,
-window and `ruleHash`. Verified settlement changes the factual status; it does
-not erase the incident.
+admitted fact. The prototype scopes each scan by merchant, token, window and
+`ruleHash`; production still requires persistent caching and rate limits.
+Verified settlement changes the factual status; it does not erase the incident.
 
-The hackathon demo exercises the integrated path end to end to prove that the
-shared engine can go beyond evidence and move value autonomously. The
-user-facing transaction-report and public resolution flow remain the next
-product surface; they are not presented as implemented in this repository.
+The hackathon demo exercises the dispute path end to end. Wallet A signs one
+reported transaction before any scan exists; only then does The Graph reveal
+the two additional affected wallets. Evidence freezes, the merchant explicitly
+authorizes that exact case, and only then can Hedera settle it atomically. A
+public merchant-resolution page remains future product surface.
 
 ## What is implemented
 
 | Stage | Live implementation |
 |---|---|
-| Policy | 0G Compute compiles terms into strict JSON; candidates retain compilation provenance and can be signed by the allowlisted merchant |
-| Detection | The Graph Substreams indexes Base Sepolia USDC transfers; the Victim Finder MCP derives violations |
+| Policy | 0G Compute compiles published terms into strict JSON with provenance; the rule can open a dispute but cannot move funds |
+| Trigger | One wallet signs `BITEBACK_REPORT_V1` over one confirmed transaction hash; merchant, token and window are derived from its receipt |
+| Detection | Only after that report, The Graph Substreams indexes the merchant scope and the Victim Finder MCP derives every violation |
+| Anomaly monitoring | An independent Bayesian monitor learns 5-minute EVM chain-health baselines and emits non-financial alerts |
 | Claims | Every affected EVM wallet signs one short-lived EIP-191 delegation naming its Hedera payout account |
 | Evidence | Canonical evidence is SHA-256 hashed, uploaded to 0G Storage, downloaded, verified and anchored on HCS |
-| Contest | An unsigned incident can stop at evidence or record a signed merchant `REJECT`; no funds move |
-| Settlement | A persisted Hedera transaction ID executes one approved HBAR debit and N recipient credits atomically |
+| Decision | After evidence freezes, the merchant signs `ACCEPT` or `REJECT` over the incident, evidence hash and exact total |
+| Settlement | Only `ACCEPT` unlocks one approved HBAR debit and N recipient credits atomically |
 | Audit | HCS stores deduplicated, hash-chained envelopes; Mirror Node serves the public timeline |
 
 The model only compiles the policy. It never receives payments, determines
@@ -65,56 +81,63 @@ deterministic.
 
 | Partner | Required role in BITEBACK | Failure behavior |
 |---|---|---|
-| **0G Compute** | Converts provider terms into the strict rule the provider signs | No new policy can be registered |
+| **0G Compute** | Converts published provider terms into the strict dispute rule | No new policy can be compiled |
 | **The Graph** | Supplies the canonical transfer set from which affected wallets are derived | No incident can be opened |
 | **0G Storage** | Preserves the complete canonical Evidence Pack outside the HCS message limit | Settlement fails closed |
-| **Hedera** | Holds the pre-authorized bond, executes the atomic payout, and publishes the audit trail | No compensation is sent |
+| **Hedera** | Verifies the decision trail, executes the merchant-authorized atomic payout, and publishes the audit | No compensation is sent |
 
 The integrations are sequential trust boundaries, not logos added to the same
 screen. A payout cannot happen unless all four live checks succeed.
 
-## Live demo: the integrated upgrade path
+## Live demo: the dispute path
 
-ByteMeter API is a controlled integrated provider selling a fixed-price
-three-query data-enrichment pack for `0.001` test USDC. Its signed policy allows
-one equal charge per wallet per UTC day. Clicking **Start live incident**:
+ByteMeter API is a controlled provider selling a fixed-price three-query
+data-enrichment pack for `0.001` test USDC. Its published policy allows
+one equal charge per wallet per UTC day. Clicking **Create live charges**:
 
 1. creates three fresh customer wallets;
 2. submits three valid pack charges to Base Sepolia;
 3. submits a second equal charge four seconds later;
-4. waits for The Graph Substreams to index all six transfers before classifying
-   the three second charges as policy violations;
-5. collects real EIP-191 recipient authorizations, archives the evidence in 0G,
-   and executes a new atomic Hedera payout.
+4. stops with six confirmed charges, zero incidents and zero Graph results;
+5. after **Report Wallet A charge**, Wallet A signs one transaction hash;
+6. derives merchant, token and window from that transaction, then asks The
+   Graph to find the full pattern—one reporter becomes three affected wallets;
+7. preserves the signed report inside the Evidence Pack, collects real EIP-191
+   recipient authorizations and archives the evidence in
+   0G;
+8. stops at **Merchant decision required**;
+9. after the operator clicks **Authorize settlement**, records a signed
+   ByteMeter `ACCEPT` and executes a new atomic Hedera payout.
 
-The scenario proves the technically stronger integrated outcome using a
-controlled provider. The launch wedge remains dispute-first. The demo does not
-allege misconduct by an external company or infer payment intent from equal
-transfers alone.
+The demo does not allege misconduct by an external company or infer payment
+intent from equal transfers alone.
 
-## Autonomous consent model
+## Manual settlement authorization
 
-An integrated merchant consents before an incident exists:
+Freezing evidence never moves money. For the launch path:
 
-1. it signs the machine-readable rule;
-2. it funds a Hedera Consumer Bond;
-3. it grants the Settlement Agent a native HBAR allowance.
+1. the merchant reviews the compiled rule, affected set and total;
+2. it signs `ACCEPT` over the incident ID, evidence hash and exact payout;
+3. the Settlement Agent revalidates source receipts, 0G bytes, claims, reserve,
+   allowance and replay set;
+4. Hedera executes one atomic payout and HCS records the authorization and
+   result.
 
-After every affected wallet joins, freezing the evidence triggers settlement
-automatically. The service revalidates the signed rule, source-chain receipts and
-confirmations, 0G bytes, claims, totals, bond balance, allowance, and replay set.
-There is no later `ACCEPT` decision or payout button.
+`REJECT` closes the incident without payment and preserves the counter-position
+in the audit trail.
 
 ```mermaid
 flowchart LR
-  D["One disputed payment"] --> C["0G compiles published terms"]
-  G["The Graph Substreams"] --> V["Victim Finder MCP"]
+  D["Wallet A signs one tx report"] --> S["Derive merchant, token and window"]
+  S --> G["The Graph Substreams"]
+  D --> C["0G compiles published terms"]
+  G --> V["Find Wallet A + Wallets B and C"]
   C --> V
   V --> I["Affected set + exact loss + Evidence Pack"]
-  I --> Q{"Pre-authorized merchant?"}
-  Q -->|"No"| U["Contest or voluntary settlement"]
-  Q -->|"Signed rule + bond"| P["Automatic atomic payout"]
-  U --> H["HCS + Mirror Node audit"]
+  I --> Q{"Merchant decision"}
+  Q -->|"REJECT"| R["Dispute preserved"]
+  Q -->|"Signed ACCEPT"| P["Atomic Hedera payout"]
+  R --> H["HCS + Mirror Node audit"]
   P --> H
 ```
 
@@ -122,8 +145,8 @@ flowchart LR
 
 - The Graph: live transfer indexing and MCP-backed victim discovery.
 - 0G: inference for policy compilation and durable evidence storage.
-- Hedera: Consumer Bond, native allowance, atomic HBAR payout, HCS, and Mirror
-  Node.
+- Hedera: settlement reserve, native allowance, merchant-authorized atomic HBAR
+  payout, HCS, and Mirror Node.
 - Hono, TypeScript, ethers, and the official partner SDKs.
 
 ## Partner-track alignment
@@ -143,11 +166,10 @@ cannot enter the settlement path.
 
 ### Hedera — AI & Agentic Payments
 
-The provider grants consent before any incident by signing its policy and
-approving an HBAR allowance. After affected wallets have joined and evidence is
-frozen, the Settlement Agent verifies every precondition and submits the payout
-without a later `ACCEPT` decision. Evidence freeze is a technical state
-transition, not a new payment approval.
+The provider explicitly authorizes one frozen settlement by signing `ACCEPT`.
+The Settlement Agent then determines recipients from the Graph-derived evidence,
+recalculates every amount and submits one atomic payout. The human authorizes
+the case; the agent safely executes its exact multi-recipient resolution.
 
 ### Hedera — No Solidity Allowed
 
@@ -162,11 +184,10 @@ This repository contains no Solidity and deploys no smart contracts.
 
 ### 0G — Best AI Product
 
-0G Compute translates natural-language billing terms into a strict candidate
-rule. In the dispute path, the candidate stays explicitly unsigned and
-contestable; in the integrated path, the provider signs its exact hash. In both
-paths the model writes only the rule. 0G Storage holds the canonical Evidence
-Pack, which BITEBACK downloads and verifies before any settlement.
+0G Compute translates natural-language billing terms into a strict, contestable
+candidate rule. The model writes only the rule. 0G Storage holds the canonical
+Evidence Pack, which BITEBACK downloads and verifies before a merchant can
+authorize settlement.
 
 ## Quickstart
 
@@ -187,10 +208,10 @@ cp .env.example .env
 npm run setup:demo
 ```
 
-`setup:demo` creates or reuses the Settlement Agent, 101 HBAR Consumer Bond,
-100 HBAR allowance, three Hedera recipients, merchant and victim wallets, and a
-clean HCS topic. It writes `.env` with mode `0600` and never prints private keys.
-It spends Hedera Testnet funds.
+`setup:demo` creates or reuses the Settlement Agent, a 101 HBAR settlement
+reserve, 100 HBAR execution allowance, three Hedera recipients, merchant and
+victim wallets, and a clean HCS topic. It writes `.env` with mode `0600` and
+never prints private keys. It spends Hedera Testnet funds.
 
 Set `RESET_HCS_TOPIC=1` before `setup:demo` to replace an older immutable topic;
 the script resets the flag to `0` after creating the new chain.
@@ -205,10 +226,71 @@ npm run dev
 npm run demo:run
 ```
 
-`demo:run` compiles and signs the policy, scans The Graph, joins every affected
-wallet, verifies the 0G round-trip and settles through Hedera. It is idempotent.
-Open [http://localhost:8403](http://localhost:8403) to inspect the console or
-start another controlled live incident.
+`demo:run` compiles the policy, signs Wallet A's transaction report, lets that
+report trigger The Graph, joins every affected wallet,
+verifies the 0G round-trip, signs an explicit test `ACCEPT`, and settles through
+Hedera. The dashboard exposes the same authorization as a separate manual
+button. Open [http://localhost:8403](http://localhost:8403) to run it.
+
+## On-chain anomaly monitoring
+
+Anomaly monitoring is independent from disputes and settlement. It can warn
+operators, but cannot create an incident, claim, decision or payout.
+
+Set `ANOMALY_ENABLED=1` and configure EVM networks in
+`ANOMALY_CHAINS_JSON`. Each entry requires `id`, `name`, `chainId`, `rpcUrl`
+and `confirmations`; `substreamsEndpoint` enables the bundled compact
+Substreams package, with confirmed-block JSON-RPC as fallback. An optional
+`secondaryRpcUrl` supplies the independent finalized-head quorum required
+before a liveness stall can become a critical chain alert. Provider disagreement
+is source degradation, never a chain anomaly. The monitor
+backfills 30 days in resumable 50,000-block Substreams chunks or 500-block RPC
+chunks, stores 5-minute buckets, then runs every minute.
+
+The independent heartbeat checks every configured chain each minute and reports
+both finalized heads, quorum, block age, RPC latency, and consecutive failures.
+A block older than `ANOMALY_HEARTBEAT_STALE_SECONDS` is `stalled` only when both
+providers agree; two consecutive primary heartbeat failures are `down`.
+Backfills do not block heartbeat checks.
+
+The candidate v2 detector uses a robust empirical-Bayes
+Normal–Inverse-Gamma posterior, weekday/weekend five-minute seasonality,
+conformal residual calibration, and Benjamini–Yekutieli correction across
+correlated metrics. Positive values use `log1p`; ratios use a clamped logit
+transform. The service retains v1 until a complete benchmark artifact promotes
+v2 and its frozen parameters. Abnormal buckets are quarantined until an
+operator resolves them as expected or confirmed.
+
+Alerts appear in the dashboard and may be acknowledged or resolved as
+`expected` or `confirmed`. When `ANOMALY_WEBHOOK_URL` and
+`ANOMALY_WEBHOOK_SECRET` are set, webhook bodies are HMAC-SHA256 signed over
+`timestamp.rawBody`.
+
+Wallets can sign a non-financial watch message to receive chain warnings.
+Anomaly assessments suggest safe actions and expose dispute readiness, but a
+collective dispute still requires one signed confirmed transaction report and
+deterministic Graph-derived violations. See
+[ANOMALY_VALIDATION.md](./ANOMALY_VALIDATION.md) for the frozen labels,
+methodology, limitations, and reproducible annual benchmark.
+
+### Validation dashboard
+
+The Anomalies view is designed for direct model review:
+
+- aligned Base, Optimism, and Arbitrum annual timelines distinguish official
+  incident windows, observer simulations, warning scores, and critical scores;
+- selectable event charts show the observed metric, expected mean, 99% and
+  99.9% predictive bands, UTC boundaries, and the first detection;
+- precision-recall is the primary rare-event comparison for v1, seasonal MAD,
+  and conformal v2;
+- the zoomed calibration plot makes small deviations near 99% and 99.9%
+  coverage readable instead of compressing them into a chart corner;
+- the research index maps every evaluation choice to its paper and concrete
+  implementation.
+
+The UI does not invent benchmark values. Annual charts appear only after
+`npm run anomaly:benchmark` produces a checksum-verified artifact with complete
+three-chain coverage.
 
 ## Commands
 
@@ -222,6 +304,9 @@ npm run demo:run         execute the complete end-to-end flow
 npm run policy:sign      compile terms through 0G and sign with the merchant key
 npm run claims:join      sign and submit every affected-wallet delegation
 npm run evidence:verify  independent 0G upload/download/hash round-trip
+ANOMALY_LIVE_TEST=1 npm test  opt-in configured Substreams smoke test
+npm run anomaly:validate      replay labeled Base and Optimism incidents
+npm run anomaly:benchmark     resume the one-year three-chain benchmark
 npm run dev              local development server
 ```
 
@@ -233,9 +318,25 @@ GET  /api/config
 GET  /api/bond
 GET  /api/demo/live
 POST /api/demo/live
+POST /api/demo/live/report
+POST /api/demo/live/authorize
 POST /api/rules/compile
 POST /api/rules/sign
+POST /api/report
 POST /api/scan
+GET  /api/anomaly/chains
+GET  /api/anomaly/heartbeat
+GET  /api/anomaly/benchmark
+GET  /api/anomaly/research
+GET  /api/anomaly/chains/:id/metrics
+GET  /api/anomalies
+GET  /api/anomalies/:id
+GET  /api/anomalies/:id/dispute-readiness
+POST /api/anomaly/wallets/watch
+GET  /api/anomaly/wallets/:address/notifications
+POST /api/anomalies/run
+POST /api/anomalies/:id/acknowledge
+POST /api/anomalies/:id/resolve
 GET  /api/incidents
 GET  /api/incidents/:id
 POST /api/incidents/:id/join
@@ -247,14 +348,31 @@ GET  /api/incidents/:id/audit
 POST /mcp
 ```
 
-All mutation endpoints except wallet claim joining require:
+All mutations except signed wallet reporting and wallet claim joining require:
 
 ```text
 Authorization: Bearer <OPERATOR_TOKEN>
 ```
 
-`POST /api/incidents/:id/settle` is an idempotent recovery/reconciliation
-endpoint. Normal integrated settlement starts inside `freeze`.
+`POST /api/incidents/:id/freeze` only freezes and archives evidence.
+`POST /api/report` verifies `BITEBACK_REPORT_V1`, derives the scope from the
+reported transaction and only then executes the collective Graph query.
+`POST /api/incidents/:id/decision` records the merchant's signed `ACCEPT` or
+`REJECT`. `POST /api/incidents/:id/settle` is idempotent and fails closed unless
+the stored `ACCEPT` matches the frozen evidence and exact total.
+
+The reporting wallet signs exactly:
+
+```text
+BITEBACK_REPORT_V1
+txHash=0x...
+```
+
+```bash
+curl -X POST http://localhost:8403/api/report \
+  -H 'content-type: application/json' \
+  -d '{"txHash":"0x...","signature":"0x..."}'
+```
 
 Example scan:
 
@@ -280,9 +398,11 @@ The MCP server exposes `scanViolations`, `findVictims`, `calculateLoss`, and
 
 ## Security invariants
 
-- merchant policy signatures recover to `SOURCE_MERCHANT_SIGNER`;
 - the complete compiled rule snapshot is bound into the evidence hash;
-- only a valid allowlisted merchant signature can unlock automatic settlement;
+- only a post-evidence `ACCEPT` signed by `SOURCE_MERCHANT_SIGNER` can unlock
+  settlement;
+- the signed decision binds the incident ID, evidence hash, decision, exact
+  payout, nonce and expiry;
 - affected-wallet delegations are expiring, nonce-protected, and signer-bound;
 - source receipts must still contain each exact transfer and meet the configured
   confirmation threshold;
@@ -300,15 +420,21 @@ The MCP server exposes `scanViolations`, `findVictims`, `calculateLoss`, and
 
 ## Public testnet proof
 
-- Consumer Bond: `0.0.9740041`
+- Settlement reserve: `0.0.9740041`
 - Settlement Agent: `0.0.9735745`
 - HCS topic:
   [0.0.9744276](https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.9744276/messages?limit=20&order=asc)
+- Wallet A trigger:
+  [reported Base transaction](https://sepolia.basescan.org/tx/0x17093f2cc2a78d2f8cd6e2ce1ecda506cedf188c1de2ea1189a2bed56578c7e9),
+  HCS `DISPUTE_REPORTED` sequence `41`
+- The Graph fan-out: `1` signed reporter → `6` transfers → `3` affected
+  wallets at indexed block `44623091`
 - Atomic three-recipient payout:
-  [SUCCESS](https://testnet.mirrornode.hedera.com/api/v1/transactions/0.0.9735745-1785001355-297441972)
+  [SUCCESS](https://testnet.mirrornode.hedera.com/api/v1/transactions/0.0.9735745-1785014546-095681900)
 - 0G Evidence Pack:
-  `0xc3b2c71e62346510576e79f0367d342e17c64f05c552dc63f34c45ebf60d4fbb`
-- The Graph indexed block: `44616421`
+  `0xca67f68d05ea0c987b10246effaf25255a1eecc32d364205a689e5ecfd67c658`
+- HCS merchant authorization: sequence `47`, event `SETTLEMENT_AUTHORIZED`
+- HCS payout confirmation: sequence `49`, event `PAYOUT_CONFIRMED`
 - Base Sepolia USDC: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 
 These identifiers belong to one coherent, publicly verifiable run.
@@ -325,8 +451,8 @@ another end-to-end run.
 - A non-integrated merchant can ignore the evidence. BITEBACK can assemble an
   actionable collective case, but cannot compel payment or withdraw from an
   unrelated account.
-- Automatic protection is the later integrated path: the merchant must sign the
-  rule, fund the bond and keep the allowance active.
+- Automatic protection is a later integrated path: a merchant may pre-authorize
+  signed rules and a Consumer Bond. It is not the launch flow demonstrated here.
 - **Settlement idempotency lives in the local state file, not on-chain.** An
   incident that has already paid is refused a second time — but if `data/` is
   deleted, the same violation is detected again and paid again. We reproduced
