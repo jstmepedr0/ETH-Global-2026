@@ -30,8 +30,16 @@ export class VictimFinder {
   async ensureRule(): Promise<Rule> {
     const existing = this.store.read().rules.find(({ id }) => id === RULE_ID);
     if (existing) return existing;
-    const merchant = process.env.SOURCE_MERCHANT_ADDRESS;
-    const token = process.env.SOURCE_TOKEN_ADDRESS;
+    const merchant =
+      process.env.SOURCE_MERCHANT_ADDRESS ??
+      (process.env.VERCEL
+        ? "0x0000000000000000000000000000000000000001"
+        : undefined);
+    const token =
+      process.env.SOURCE_TOKEN_ADDRESS ??
+      (process.env.VERCEL
+        ? "0x0000000000000000000000000000000000000002"
+        : undefined);
     if (!merchant || !token) {
       throw new BitebackError(
         "RULE_NOT_FOUND",

@@ -1057,10 +1057,36 @@ app.get("/api/config", async (context) => {
       ? `https://hashscan.io/testnet/topic/${process.env.HCS_TOPIC_ID}`
       : null,
     mcpUrl: `${new URL(context.req.url).origin}/mcp`,
+    demoReady: Boolean(
+      process.env.OPERATOR_TOKEN &&
+        process.env.SOURCE_MERCHANT_PRIVATE_KEY &&
+        process.env.SOURCE_TOKEN_ADDRESS &&
+        process.env.PINAX_JWT &&
+        process.env.HEDERA_BOND_ACCOUNT_ID &&
+        process.env.HEDERA_SETTLEMENT_ACCOUNT_ID &&
+        process.env.HCS_TOPIC_ID &&
+        process.env.OG_ROUTER_KEY,
+    ),
   });
 });
 
-app.get("/api/bond", async (context) => context.json(await getBondStatus()));
+app.get("/api/bond", async (context) => {
+  if (
+    process.env.VERCEL &&
+    (!process.env.HEDERA_BOND_ACCOUNT_ID ||
+      !process.env.HEDERA_SETTLEMENT_ACCOUNT_ID)
+  ) {
+    return context.json({
+      accountId: "not configured",
+      spenderAccountId: "not configured",
+      balanceTinybar: "0",
+      allowanceTinybar: "0",
+      protected: false,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+  return context.json(await getBondStatus());
+});
 
 app.get("/api/anomaly/chains", (context) =>
   context.json(anomalyMonitor.chainStates()),
@@ -1084,10 +1110,12 @@ app.get("/api/anomaly/benchmark", async (context) => {
       );
 });
 
-app.get("/api/anomaly/research", (context) =>
-  context.json({
+app.get("/api/anomaly/research", async (context) => {
+  const benchmark = await readAnnualBenchmark();
+  return context.json({
     sources: ANOMALY_RESEARCH_INDEX,
     models: ANOMALY_MODEL_INDEX,
+    benchmarkAvailable: Boolean(benchmark),
     evaluation: {
       mode: "prequential streaming",
       primaryView: "precision-recall",
@@ -1096,8 +1124,8 @@ app.get("/api/anomaly/research", (context) =>
       falsePositiveReporting:
         "unmatched episodes reported separately from confirmed false positives",
     },
-  }),
-);
+  });
+});
 
 app.get("/api/anomaly/chains/:id/metrics", (context) => {
   const parsed = z
@@ -1887,8 +1915,12 @@ app.all("/mcp", async (context) => {
 app.use("/*", serveStatic({ root: "./public" }));
 app.get("*", serveStatic({ path: "./public/index.html" }));
 
-const port = Number(process.env.PORT ?? "8403");
-serve({ fetch: app.fetch, port }, ({ port: activePort }) => {
-  console.log(`BITEBACK listening on http://localhost:${activePort}`);
-});
-anomalyMonitor.start();
+export default app;
+
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT ?? "8403");
+  serve({ fetch: app.fetch, port }, ({ port: activePort }) => {
+    console.log(`BITEBACK listening on http://localhost:${activePort}`);
+  });
+  anomalyMonitor.start();
+}

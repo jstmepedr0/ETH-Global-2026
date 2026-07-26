@@ -292,6 +292,16 @@ The UI does not invent benchmark values. Annual charts appear only after
 `npm run anomaly:benchmark` produces a checksum-verified artifact with complete
 three-chain coverage.
 
+### Vercel presentation
+
+Vercel detects the default Hono export in `src/server.ts` and serves `public/`
+through its CDN. Without partner credentials, the deployment is an honest
+read-only presentation; the live settlement button is disabled while research,
+methodology, APIs, and empty/degraded states remain reviewable. Configure the
+variables in `.env.example` to enable the full testnet flow. Vercel uses
+ephemeral `/tmp` JSON storage, so durable production state still requires an
+external database.
+
 ## Commands
 
 ```text

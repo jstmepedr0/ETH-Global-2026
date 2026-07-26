@@ -1842,6 +1842,17 @@
           </table>`;
       }
 
+      function renderBenchmarkUnavailable(message) {
+        setPill(elements.benchmarkState, "Artifact unavailable", "warn");
+        elements.benchmarkTimelines.innerHTML =
+          `<p class="empty">${escapeHtml(message)} Run <code>npm run anomaly:benchmark</code> with a configured Substreams token.</p>`;
+        elements.benchmarkEvent.innerHTML = "";
+        elements.benchmarkEventChart.innerHTML = "";
+        elements.benchmarkPrecisionRecall.innerHTML = "";
+        elements.benchmarkCalibration.innerHTML = "";
+        elements.benchmarkResults.innerHTML = "";
+      }
+
       async function loadAnomalyBenchmark() {
         try {
           const response = await fetch("/api/anomaly/benchmark");
@@ -1868,20 +1879,14 @@
           renderBenchmarkPlots(benchmark);
           renderBenchmarkResults(benchmark);
         } catch (error) {
-          setPill(elements.benchmarkState, "Artifact unavailable", "warn");
-          elements.benchmarkTimelines.innerHTML =
-            `<p class="empty">${escapeHtml(error.message)} Run <code>npm run anomaly:benchmark</code> with a configured Substreams token.</p>`;
-          elements.benchmarkEvent.innerHTML = "";
-          elements.benchmarkEventChart.innerHTML = "";
-          elements.benchmarkPrecisionRecall.innerHTML = "";
-          elements.benchmarkCalibration.innerHTML = "";
-          elements.benchmarkResults.innerHTML = "";
+          renderBenchmarkUnavailable(error.message);
         }
       }
 
       async function loadAnomalyResearch() {
         try {
-          const { sources, models } = await api("/api/anomaly/research");
+          const { sources, models, benchmarkAvailable } =
+            await api("/api/anomaly/research");
           elements.modelIndex.innerHTML = models
             .map(
               (model) => `
@@ -1908,11 +1913,13 @@
             )
             .join("");
           setPill(elements.researchState, `${sources.length} sources indexed`, "live");
+          return Boolean(benchmarkAvailable);
         } catch (error) {
           setPill(elements.researchState, "Index unavailable", "warn");
           elements.modelIndex.innerHTML = "";
           elements.researchIndex.innerHTML =
             `<p class="empty">${escapeHtml(error.message)}</p>`;
+          return false;
         }
       }
 
@@ -2612,6 +2619,14 @@
             incident = await api(`/api/incidents/${live.run.incidentId}`);
           }
           renderLiveRun(live.run);
+          if (!config.demoReady && !live.run) {
+            elements.runProof.disabled = true;
+            elements.runIcon.innerHTML = "";
+            elements.runLabel.textContent = "Read-only presentation";
+            elements.runProof.title =
+              "Configure the documented testnet environment to run the live settlement demo.";
+            setPill(elements.livePhasePill, "Presentation mode");
+          }
           renderBond(bond);
           if (
             live.run &&
@@ -2788,8 +2803,14 @@
 
       load();
       loadAnomalies();
-      loadAnomalyBenchmark();
-      loadAnomalyResearch();
+      loadAnomalyResearch().then((benchmarkAvailable) => {
+        if (benchmarkAvailable) loadAnomalyBenchmark();
+        else {
+          renderBenchmarkUnavailable(
+            "Annual benchmark artifact unavailable.",
+          );
+        }
+      });
     </script>
   </body>
 </html>

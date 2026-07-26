@@ -344,7 +344,11 @@ export class Store {
   private database: Database = emptyDatabase();
   private writeQueue = Promise.resolve();
 
-  constructor(private readonly file = process.env.DATA_FILE ?? "data/biteback.json") {}
+  constructor(
+    private readonly file =
+      process.env.DATA_FILE ??
+      (process.env.VERCEL ? "/tmp/biteback.json" : "data/biteback.json"),
+  ) {}
 
   async load(): Promise<void> {
     try {
