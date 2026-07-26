@@ -1915,8 +1915,10 @@ app.all("/mcp", async (context) => {
   return handleMcp(context.req.raw, victimFinder);
 });
 app.get("/", (context) => context.redirect("/index.html"));
-app.use("/*", serveStatic({ root: "./public" }));
-app.get("*", serveStatic({ path: "./public/index.html" }));
+if (!process.env.VERCEL) {
+  app.use("/*", serveStatic({ root: "./public" }));
+  app.get("*", serveStatic({ path: "./public/index.html" }));
+}
 
 export default app;
 
