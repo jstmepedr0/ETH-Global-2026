@@ -1,0 +1,12 @@
+.git/
+.claude/
+.playwright-cli/
+data/
+design/
+dist/
+node_modules/
+output/
+substreams/**/target/
+.env*
+!.env.example
+*.log
