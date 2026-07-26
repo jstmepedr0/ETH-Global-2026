@@ -1912,6 +1912,7 @@ app.all("/mcp", async (context) => {
   requireOperator(context.req.header("authorization"));
   return handleMcp(context.req.raw, victimFinder);
 });
+app.get("/", (context) => context.redirect("/index.html"));
 app.use("/*", serveStatic({ root: "./public" }));
 app.get("*", serveStatic({ path: "./public/index.html" }));
 
